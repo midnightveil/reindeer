@@ -1,6 +1,6 @@
 use std::mem::size_of;
 
-use zerocopy::{FromBytes, FromZeroes};
+use zerocopy::{FromBytes, FromZeroes, AsBytes};
 
 use crate::elf_aux_structures::*;
 
@@ -14,7 +14,7 @@ const_assert!(size_of::<ElfIdent>() == 16);
 const_assert!(size_of::<Elf32Header>() == 52);
 const_assert!(size_of::<Elf64Header>() == 64);
 
-#[derive(FromBytes, FromZeroes, Debug)]
+#[derive(FromBytes, FromZeroes, AsBytes, Debug)]
 #[repr(C)]
 pub struct ElfIdent {
     /// ELF Magic, should be `b"\x7fELF"`.
@@ -29,7 +29,7 @@ pub struct ElfIdent {
     pub ei_pad: [u8; 9],
 }
 
-#[derive(FromBytes, FromZeroes, Debug)]
+#[derive(FromBytes, FromZeroes, AsBytes, Debug)]
 #[repr(C)]
 pub struct Elf32Header {
     /// ELF Ident
@@ -77,7 +77,7 @@ pub struct Elf32Header {
     pub e_shstrndx: u16,
 }
 
-#[derive(FromBytes, FromZeroes, Debug)]
+#[derive(FromBytes, FromZeroes, AsBytes, Debug)]
 #[repr(C)]
 pub struct Elf64Header {
     /// ELF Ident

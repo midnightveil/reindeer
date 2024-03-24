@@ -1,12 +1,15 @@
-use zerocopy::{FromBytes, FromZeroes};
+use zerocopy::{FromBytes, FromZeroes, AsBytes};
 
 use crate::{elf_structures::ElfIdent, ElfHeader};
 
-#[derive(FromBytes, FromZeroes, Debug, Eq, PartialEq)]
+#[derive(FromBytes, FromZeroes, AsBytes, Debug, Eq, PartialEq)]
+#[repr(C)]
 pub struct ElfIdentClass(pub u8);
-#[derive(FromBytes, FromZeroes, Debug, Eq, PartialEq)]
+#[derive(FromBytes, FromZeroes, AsBytes, Debug, Eq, PartialEq)]
+#[repr(C)]
 pub struct ElfIdentData(pub u8);
-#[derive(FromBytes, FromZeroes, Debug, Eq, PartialEq)]
+#[derive(FromBytes, FromZeroes, AsBytes, Debug, Eq, PartialEq)]
+#[repr(C)]
 pub struct ElfIdentVersion(pub u8);
 
 impl ElfIdent {
@@ -22,11 +25,14 @@ impl ElfIdent {
     pub const EV_CURRENT: ElfIdentVersion = ElfIdentVersion(1);
 }
 
-#[derive(FromBytes, FromZeroes, Debug, Eq, PartialEq)]
+#[derive(FromBytes, FromZeroes, AsBytes, Debug, Eq, PartialEq)]
+#[repr(C)]
 pub struct ElfHeaderType(pub u16);
-#[derive(FromBytes, FromZeroes, Debug, Eq, PartialEq)]
+#[derive(FromBytes, FromZeroes, AsBytes, Debug, Eq, PartialEq)]
+#[repr(C)]
 pub struct ElfHeaderMachine(pub u16);
-#[derive(FromBytes, FromZeroes, Debug, Eq, PartialEq)]
+#[derive(FromBytes, FromZeroes, AsBytes, Debug, Eq, PartialEq)]
+#[repr(C)]
 pub struct ElfHeaderVersion(pub u32);
 
 impl ElfHeader<'_> {
