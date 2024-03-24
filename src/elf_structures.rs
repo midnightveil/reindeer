@@ -10,7 +10,6 @@
 //! [man-elf]: https://man7.org/linux/man-pages/man5/elf.5.html
 //! [sco]: https://www.sco.com/developers/gabi/latest/contents.html
 
-
 use std::mem::size_of;
 
 use zerocopy::{AsBytes, FromBytes, FromZeroes};

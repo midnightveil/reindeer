@@ -1,10 +1,6 @@
 use std::{env, error::Error, fs::File, io::Read};
 
-use reindeerlib::{
-    elf_structures::Elf64SectionHeader,
-    ElfHeader, ElfSectionHeader,
-};
-use zerocopy::{AsBytes, FromBytes};
+use reindeerlib::{ElfHeader, ElfSectionHeader};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let path = env::args().nth(1).unwrap_or("/bin/true".into());
@@ -12,36 +8,34 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut buffer = Vec::new();
     f.read_to_end(&mut buffer)?;
 
-    let ElfHeader::Elf64(header) = ElfHeader::parse(&buffer).unwrap().0 else {
-        panic!()
-    };
-    println!("{:x?}\n", header);
+    let header = ElfHeader::parse(&buffer).unwrap();
 
-    assert_eq!(
-        header.e_shentsize as usize,
-        std::mem::size_of::<Elf64SectionHeader>()
+    let string_table_header_offset = header.get_string_table_header_offset().unwrap();
+    let string_table_header =
+        ElfSectionHeader::parse(&header, &buffer[string_table_header_offset]).unwrap();
+    let string_table_offset = string_table_header.get_location_within_file();
+    let string_table = &buffer[string_table_offset];
+    assert_eq!(string_table.first(), Some(0).as_ref());
+    assert_eq!(string_table.last(), Some(0).as_ref());
+
+    println!(
+        "[Nr] Name                  Type            Address          Off    Size   Flags Align"
     );
-    let (sec_headers, _): (&[Elf64SectionHeader], _) = Elf64SectionHeader::slice_from_prefix(
-        &buffer[(header.e_shoff as usize)..],
-        header.e_shnum as usize,
-    )
-    .unwrap();
+    for n in 0..header.get_num_section_headers() {
+        let section_header_offset = header.get_section_header_offset(n).unwrap();
+        let section_header =
+            ElfSectionHeader::parse(&header, &buffer[section_header_offset]).unwrap();
+        let name = section_header.get_name(string_table).unwrap();
 
-    assert_ne!(header.e_shstrndx, 0);
-    let string_table_hdr = &sec_headers[header.e_shstrndx as usize];
-    let start = string_table_hdr.sh_offset as usize;
-    let end = (string_table_hdr.sh_offset + string_table_hdr.sh_size) as usize;
-    let string_table = &buffer[start..end];
-
-    println!("[Nr] Name                  Type            Address          Off    Size   Flags Align");
-    for (i, sec_header) in sec_headers.iter().enumerate() {
-        let sec_header_general = ElfSectionHeader::Elf64(sec_header);
-        let name = sec_header_general.get_name(string_table).unwrap();
+        let ElfSectionHeader::Elf64(sec_header) = section_header else {
+            panic!()
+        };
 
         println!(
-            "[{i:02}] {:<21} {:<15} {:016x} {:06x} {:06x} {:5x} {:5}",
+            "[{:02}] {:<21} {:<15} {:016x} {:06x} {:06x} {:5x} {:5}",
+            n,
             name,
-            sec_header_general.get_type_name(),
+            section_header.get_type_name(),
             sec_header.sh_addr,
             sec_header.sh_offset,
             sec_header.sh_size,
@@ -49,8 +43,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             sec_header.sh_addralign,
         );
     }
-
-    println!("{:?}", header.as_bytes());
 
     Ok(())
 }

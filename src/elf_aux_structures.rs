@@ -1,4 +1,4 @@
-use zerocopy::{FromBytes, FromZeroes, AsBytes};
+use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 use crate::{elf_structures::ElfIdent, ElfHeader};
 

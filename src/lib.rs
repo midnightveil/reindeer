@@ -1,11 +1,11 @@
 pub mod elf_aux_structures;
 pub mod elf_structures;
 
-use std::{borrow::Cow, ffi::CStr};
+use std::{borrow::Cow, ffi::CStr, ops::Range};
 
 use elf_aux_structures::*;
 use elf_structures::*;
-use zerocopy::{FromBytes, Ref};
+use zerocopy::FromBytes;
 
 /// An Elf header type, representing either 64 or 32 bit little-endian ELFs.
 #[derive(Debug)]
@@ -21,25 +21,60 @@ pub fn valid_ident(e_ident: &ElfIdent) -> bool {
 }
 
 impl<'buf> ElfHeader<'buf> {
-    pub fn parse(bytes: &'buf [u8]) -> Option<(Self, &'buf [u8])> {
+    pub fn parse(bytes: &'buf [u8]) -> Option<Self> {
         let e_ident: &ElfIdent = ElfIdent::ref_from_prefix(bytes)?;
         if !valid_ident(e_ident) {
             return None;
         }
 
-        // TODO: add more checks.
-
         match e_ident.ei_class {
-            ElfIdent::CLASS_32 => {
-                let (e_header, rest) = Ref::<_, Elf32Header>::new_from_prefix(bytes)?;
-                Some((Self::Elf32(e_header.into_ref()), rest))
-            }
-            ElfIdent::CLASS_64 => {
-                let (e_header, rest) = Ref::<_, Elf64Header>::new_from_prefix(bytes)?;
-                Some((Self::Elf64(e_header.into_ref()), rest))
-            }
-            ElfIdent::CLASS_NONE | ElfIdentClass(_) => None,
+            ElfIdent::CLASS_32 => Some(Self::Elf32(Elf32Header::ref_from_prefix(bytes)?)),
+            ElfIdent::CLASS_64 => Some(Self::Elf64(Elf64Header::ref_from_prefix(bytes)?)),
+            ElfIdentClass(_) => None,
         }
+    }
+
+    fn get_string_table_index(&self) -> Option<u16> {
+        let string_table_index = match self {
+            Self::Elf32(header) => header.e_shstrndx,
+            Self::Elf64(header) => header.e_shstrndx,
+        };
+
+        // TODO: SH_UNDEF
+        if string_table_index == 0 {
+            None
+        } else {
+            Some(string_table_index)
+        }
+    }
+
+    pub fn get_num_section_headers(&self) -> u16 {
+        match self {
+            Self::Elf32(header) => header.e_shnum,
+            Self::Elf64(header) => header.e_shnum,
+        }
+    }
+
+    pub fn get_section_header_offset(&self, header_number: u16) -> Option<Range<usize>> {
+        let (offset, size) = match self {
+            Self::Elf32(header) => (header.e_shoff as usize, header.e_shentsize),
+            Self::Elf64(header) => (header.e_shoff as usize, header.e_shentsize),
+        };
+
+        if header_number < self.get_num_section_headers() {
+            let size = size as usize;
+            let start = offset + (header_number as usize) * size;
+            Some(Range {
+                start,
+                end: start + size,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn get_string_table_header_offset(&self) -> Option<Range<usize>> {
+        self.get_section_header_offset(self.get_string_table_index()?)
     }
 }
 
@@ -51,16 +86,40 @@ pub enum ElfSectionHeader<'buf> {
 }
 
 impl<'buf> ElfSectionHeader<'buf> {
-    pub fn parse() {}
+    pub fn parse(header: &ElfHeader, bytes: &'buf [u8]) -> Option<Self> {
+        match header {
+            ElfHeader::Elf32(_) => Some(Self::Elf32(Elf32SectionHeader::ref_from_prefix(bytes)?)),
+            ElfHeader::Elf64(_) => Some(Self::Elf64(Elf64SectionHeader::ref_from_prefix(bytes)?)),
+        }
+    }
+
+    pub fn get_location_within_file(&self) -> Range<usize> {
+        let (start, size): (usize, usize) = match self {
+            Self::Elf32(header) => (header.sh_offset as usize, header.sh_size as usize),
+            Self::Elf64(header) => (header.sh_offset as usize, header.sh_size as usize),
+        };
+
+        Range {
+            start,
+            end: start + size,
+        }
+    }
 
     pub fn get_name<'a>(
         &self,
         string_table: &'a [u8],
     ) -> Result<&'a str, Box<dyn std::error::Error>> {
-        let null_terminated = match self {
-            Self::Elf32(header) => &string_table[header.sh_name as usize..],
-            Self::Elf64(header) => &string_table[header.sh_name as usize..],
+        let sh_name_index = match self {
+            Self::Elf32(header) => header.sh_name as usize,
+            Self::Elf64(header) => header.sh_name as usize,
         };
+
+        if sh_name_index >= string_table.len() {
+            // bad data.
+            todo!()
+        }
+
+        let null_terminated = &string_table[sh_name_index..];
 
         Ok(CStr::from_bytes_until_nul(null_terminated)?.to_str()?)
     }
