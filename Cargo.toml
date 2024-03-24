@@ -1,0 +1,10 @@
+[package]
+name = "reindeer"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "reindeerlib"
+
+[dependencies]
+zerocopy = { version = "0.7.32", features = ["derive"] }
