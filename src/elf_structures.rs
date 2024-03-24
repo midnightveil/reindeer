@@ -1,6 +1,19 @@
+//! Structures for parsing of ELF file headers.
+//!
+//! The standard is [TIS Portable Formats Specification v1.2][elf standard].
+//! The man page [elf(5)][man-elf] also contains details.
+//! The documentation for 64-bit ELF headers is [System V ABI Draft 2013][sco]
+//!
+//! Here we assume that all data is little-endian, to make my life easier.
+//!
+//! [elf standard]: https://refspecs.linuxfoundation.org/elf/elf.pdf
+//! [man-elf]: https://man7.org/linux/man-pages/man5/elf.5.html
+//! [sco]: https://www.sco.com/developers/gabi/latest/contents.html
+
+
 use std::mem::size_of;
 
-use zerocopy::{FromBytes, FromZeroes, AsBytes};
+use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
 use crate::elf_aux_structures::*;
 
@@ -13,6 +26,8 @@ macro_rules! const_assert {
 const_assert!(size_of::<ElfIdent>() == 16);
 const_assert!(size_of::<Elf32Header>() == 52);
 const_assert!(size_of::<Elf64Header>() == 64);
+const_assert!(size_of::<Elf32SectionHeader>() == 40);
+const_assert!(size_of::<Elf64SectionHeader>() == 64);
 
 #[derive(FromBytes, FromZeroes, AsBytes, Debug)]
 #[repr(C)]
@@ -123,4 +138,82 @@ pub struct Elf64Header {
     /// with the section name string table. If the file has no section name
     /// string table, this member holds the value `SHN_UNDEF` (0).
     pub e_shstrndx: u16,
+}
+
+#[derive(FromBytes, FromZeroes, AsBytes, Debug)]
+#[repr(C)]
+pub struct Elf32SectionHeader {
+    /// This member specifies the name of the section. Its value is an index
+    /// into the section header string table section.
+    pub sh_name: u32,
+    /// This member categorizes the section's contents and semantics.
+    pub sh_type: u32,
+    /// Sections support 1-bit flags that describe miscellaneous attributes.
+    pub sh_flags: u32,
+    /// If the section will appear in the memory image of a process, this member
+    /// gives the address at which the section's first byte should reside.
+    /// Otherwise, the member contains 0.
+    pub sh_addr: u32,
+    /// This member's value gives the byte offset from the beginning of the file
+    /// to the first byte in the section.
+    pub sh_offset: u32,
+    /// This member gives the section's size in bytes.
+    pub sh_size: u32,
+    /// This member holds a section header table index link, whose
+    /// interpretation depends on the section type.
+    pub sh_link: u32,
+    /// This member holds extra information, whose interpretation depends on the
+    /// section type.
+    pub sh_info: u32,
+    /// Some sections have address alignment constraints. For example, if a
+    /// section holds a doubleword, the system must ensure doubleword alignment
+    /// for the entire section. That is, the value of `sh_addr` must be congruent
+    /// to 0, modulo the value of `sh_addralign`. Currently, only 0 and positive
+    /// integral powers of two are allowed. Values 0 and 1 mean the section has
+    /// no alignment constraints.
+    pub sh_addralign: u32,
+    /// Some sections hold a table of fixed-size entries, such as a symbol table.
+    /// For such a section, this member gives the size in bytes of each entry.
+    /// The member contains 0 if the section does not hold a table of fixed-size
+    /// entries.
+    pub sh_entsize: u32,
+}
+
+#[derive(FromBytes, FromZeroes, AsBytes, Debug)]
+#[repr(C)]
+pub struct Elf64SectionHeader {
+    /// This member specifies the name of the section. Its value is an index
+    /// into the section header string table section.
+    pub sh_name: u32,
+    /// This member categorizes the section's contents and semantics.
+    pub sh_type: u32,
+    /// Sections support 1-bit flags that describe miscellaneous attributes.
+    pub sh_flags: u64,
+    /// If the section will appear in the memory image of a process, this member
+    /// gives the address at which the section's first byte should reside.
+    /// Otherwise, the member contains 0.
+    pub sh_addr: u64,
+    /// This member's value gives the byte offset from the beginning of the file
+    /// to the first byte in the section.
+    pub sh_offset: u64,
+    /// This member gives the section's size in bytes.
+    pub sh_size: u64,
+    /// This member holds a section header table index link, whose
+    /// interpretation depends on the section type.
+    pub sh_link: u32,
+    /// This member holds extra information, whose interpretation depends on the
+    /// section type.
+    pub sh_info: u32,
+    /// Some sections have address alignment constraints. For example, if a
+    /// section holds a doubleword, the system must ensure doubleword alignment
+    /// for the entire section. That is, the value of `sh_addr` must be congruent
+    /// to 0, modulo the value of `sh_addralign`. Currently, only 0 and positive
+    /// integral powers of two are allowed. Values 0 and 1 mean the section has
+    /// no alignment constraints.
+    pub sh_addralign: u64,
+    /// Some sections hold a table of fixed-size entries, such as a symbol table.
+    /// For such a section, this member gives the size in bytes of each entry.
+    /// The member contains 0 if the section does not hold a table of fixed-size
+    /// entries.
+    pub sh_entsize: u64,
 }

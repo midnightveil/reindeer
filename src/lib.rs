@@ -1,17 +1,9 @@
-//! Structures for parsing of ELF file headers.
-//!
-//! The standard is [TIS Portable Formats Specification v1.2][elf standard].
-//! The man page [elf(5)][man-elf] also contains details.
-//!
-//! Here we assume that all data is little-endian, to make my life easier.
-//!
-//! [elf standard]: https://refspecs.linuxfoundation.org/elf/elf.pdf
-//! [man-elf]: https://man7.org/linux/man-pages/man5/elf.5.html
-
 pub mod elf_aux_structures;
 pub mod elf_structures;
 
-use elf_aux_structures::ElfIdentClass;
+use std::{borrow::Cow, ffi::CStr};
+
+use elf_aux_structures::*;
 use elf_structures::*;
 use zerocopy::{FromBytes, Ref};
 
@@ -23,9 +15,9 @@ pub enum ElfHeader<'buf> {
 }
 
 pub fn valid_ident(e_ident: &ElfIdent) -> bool {
-    return e_ident.ei_magic == *b"\x7fELF"
+    e_ident.ei_magic == *b"\x7fELF"
         && e_ident.ei_data == ElfIdent::DATA_2_LSB
-        && e_ident.ei_version == ElfIdent::EV_CURRENT;
+        && e_ident.ei_version == ElfIdent::EV_CURRENT
 }
 
 impl<'buf> ElfHeader<'buf> {
@@ -34,6 +26,8 @@ impl<'buf> ElfHeader<'buf> {
         if !valid_ident(e_ident) {
             return None;
         }
+
+        // TODO: add more checks.
 
         match e_ident.ei_class {
             ElfIdent::CLASS_32 => {
@@ -45,6 +39,58 @@ impl<'buf> ElfHeader<'buf> {
                 Some((Self::Elf64(e_header.into_ref()), rest))
             }
             ElfIdent::CLASS_NONE | ElfIdentClass(_) => None,
+        }
+    }
+}
+
+/// An Elf header type, representing either 64 or 32 bit section headers.
+#[derive(Debug)]
+pub enum ElfSectionHeader<'buf> {
+    Elf32(&'buf Elf32SectionHeader),
+    Elf64(&'buf Elf64SectionHeader),
+}
+
+impl<'buf> ElfSectionHeader<'buf> {
+    pub fn parse() {}
+
+    pub fn get_name<'a>(
+        &self,
+        string_table: &'a [u8],
+    ) -> Result<&'a str, Box<dyn std::error::Error>> {
+        let null_terminated = match self {
+            Self::Elf32(header) => &string_table[header.sh_name as usize..],
+            Self::Elf64(header) => &string_table[header.sh_name as usize..],
+        };
+
+        Ok(CStr::from_bytes_until_nul(null_terminated)?.to_str()?)
+    }
+
+    pub fn get_type_name(&self) -> Cow<'static, str> {
+        let sh_type = match self {
+            Self::Elf32(header) => header.sh_type,
+            Self::Elf64(header) => header.sh_type,
+        };
+
+        match sh_type {
+            0 => "NULL".into(),
+            1 => "PROGBITS".into(),
+            2 => "SYMTAB".into(),
+            3 => "STRTAB".into(),
+            4 => "RELA".into(),
+            5 => "HASH".into(),
+            6 => "DYNAMIC".into(),
+            7 => "NOTE".into(),
+            8 => "NOBITS".into(),
+            9 => "REL".into(),
+            10 => "SHLIB".into(),
+            11 => "DYNSYM".into(),
+            14 => "INIT_ARRAY".into(),
+            15 => "FINI_ARRAY".into(),
+            0x6ffffff6 => "GNU_HASH".into(),
+            0x6ffffffe => "VERNEED".into(),
+            0x6fffffff => "VERSYM".into(),
+            // unknonwn
+            _ => sh_type.to_string().into(),
         }
     }
 }

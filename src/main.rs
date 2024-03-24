@@ -1,41 +1,56 @@
 use std::{env, error::Error, fs::File, io::Read};
 
-use reindeerlib::{ElfHeader, elf_structures::{Elf64Header, ElfIdent}};
-use zerocopy::AsBytes;
+use reindeerlib::{
+    elf_structures::Elf64SectionHeader,
+    ElfHeader, ElfSectionHeader,
+};
+use zerocopy::{AsBytes, FromBytes};
 
-fn main() -> Result<(), Box<dyn Error>>{
+fn main() -> Result<(), Box<dyn Error>> {
     let path = env::args().nth(1).unwrap_or("/bin/true".into());
     let mut f = File::open(path)?;
     let mut buffer = Vec::new();
     f.read_to_end(&mut buffer)?;
 
-    let header = ElfHeader::parse(&buffer);
-    println!("{:?}", header.map(|x| x.0));
-
-    let made_header = Elf64Header {
-        e_ident: ElfIdent {
-            ei_magic: *b"\x7fELF",
-            ei_class: ElfIdent::CLASS_64,
-            ei_data: ElfIdent::DATA_2_LSB,
-            ei_version: ElfIdent::EV_CURRENT,
-            ei_pad: [0; 9],
-        },
-        e_type: ElfHeader::ET_EXEC,
-        e_machine: ElfHeader::EM_NONE, // meh
-        e_version: ElfHeader::EV_CURRENT,
-        e_entry: 0,
-        e_phoff: 0,
-        e_shoff: 0,
-        e_flags: 0,
-        e_ehsize: 0,
-        e_phentsize: 0,
-        e_phnum: 0,
-        e_shentsize: 0,
-        e_shnum: 0,
-        e_shstrndx: 0,
+    let ElfHeader::Elf64(header) = ElfHeader::parse(&buffer).unwrap().0 else {
+        panic!()
     };
+    println!("{:x?}\n", header);
 
-    println!("{:?}", made_header.as_bytes());
+    assert_eq!(
+        header.e_shentsize as usize,
+        std::mem::size_of::<Elf64SectionHeader>()
+    );
+    let (sec_headers, _): (&[Elf64SectionHeader], _) = Elf64SectionHeader::slice_from_prefix(
+        &buffer[(header.e_shoff as usize)..],
+        header.e_shnum as usize,
+    )
+    .unwrap();
+
+    assert_ne!(header.e_shstrndx, 0);
+    let string_table_hdr = &sec_headers[header.e_shstrndx as usize];
+    let start = string_table_hdr.sh_offset as usize;
+    let end = (string_table_hdr.sh_offset + string_table_hdr.sh_size) as usize;
+    let string_table = &buffer[start..end];
+
+    println!("[Nr] Name                  Type            Address          Off    Size   Flags Align");
+    for (i, sec_header) in sec_headers.iter().enumerate() {
+        let sec_header_general = ElfSectionHeader::Elf64(sec_header);
+        let name = sec_header_general.get_name(string_table).unwrap();
+
+        println!(
+            "[{i:02}] {:<21} {:<15} {:016x} {:06x} {:06x} {:5x} {:5}",
+            name,
+            sec_header_general.get_type_name(),
+            sec_header.sh_addr,
+            sec_header.sh_offset,
+            sec_header.sh_size,
+            sec_header.sh_flags,
+            sec_header.sh_addralign,
+        );
+    }
+
+    println!("{:?}", header.as_bytes());
 
     Ok(())
 }
