@@ -1,6 +1,6 @@
 use std::{env, error::Error, fs::File, io::Read};
 
-use reindeerlib::{range::as_range_usize, ElfHeader, ElfProgramHeader, ElfSectionHeader};
+use reindeerlib::{range::TryIntoRangeUsize, ElfHeader, ElfProgramHeader, ElfSectionHeader};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let path = env::args().nth(1).unwrap_or("/bin/true".into());
@@ -20,9 +20,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn _print_segment_load_locations(header: ElfHeader<'_>, buffer: &[u8]) -> Result<(), Box<dyn Error>> {
-    Ok(for n in 0..header.e_phnum().unwrap().get() {
-        let prog_header_loc = as_range_usize(header.program_header_location(n).unwrap())?;
+fn _print_segment_load_locations(
+    header: ElfHeader<'_>,
+    buffer: &[u8],
+) -> Result<(), Box<dyn Error>> {
+    for n in 0..header.e_phnum().unwrap().get() {
+        let prog_header_loc = header
+            .program_header_location(n)
+            .unwrap()
+            .try_into_usize()?;
 
         let program_header = ElfProgramHeader::parse(&header, &buffer[prog_header_loc]).unwrap();
         println!(
@@ -30,7 +36,9 @@ fn _print_segment_load_locations(header: ElfHeader<'_>, buffer: &[u8]) -> Result
             program_header.file_location(),
             program_header.memory_location()
         );
-    })
+    }
+
+    Ok(())
 }
 
 fn _print_program_headers(header: ElfHeader<'_>, buffer: &[u8]) -> Result<(), Box<dyn Error>> {
@@ -39,7 +47,10 @@ fn _print_program_headers(header: ElfHeader<'_>, buffer: &[u8]) -> Result<(), Bo
     );
 
     for n in 0..header.e_phnum().unwrap().get() {
-        let prog_header_loc = as_range_usize(header.program_header_location(n).unwrap())?;
+        let prog_header_loc = header
+            .program_header_location(n)
+            .unwrap()
+            .try_into_usize()?;
 
         let program_header = ElfProgramHeader::parse(&header, &buffer[prog_header_loc]).unwrap();
         let ElfProgramHeader::Elf64(prog_header) = program_header else {
@@ -63,11 +74,13 @@ fn _print_program_headers(header: ElfHeader<'_>, buffer: &[u8]) -> Result<(), Bo
 }
 
 fn get_string_table<'a>(header: ElfHeader, buffer: &'a [u8]) -> Result<&'a [u8], Box<dyn Error>> {
-    let string_table_header_location =
-        as_range_usize(header.string_table_header_location().unwrap())?;
+    let string_table_header_location = header
+        .string_table_header_location()
+        .unwrap()
+        .try_into_usize()?;
     let string_table_header =
         ElfSectionHeader::parse(&header, &buffer[string_table_header_location]).unwrap();
-    let string_table_location = as_range_usize(string_table_header.location())?;
+    let string_table_location = string_table_header.location().try_into_usize()?;
     let string_table = &buffer[string_table_location];
     assert_eq!(string_table.first(), Some(0).as_ref());
     assert_eq!(string_table.last(), Some(0).as_ref());
@@ -84,7 +97,10 @@ fn _print_section_headers(
         "[Nr] Name                  Type            Address          Off    Size   Flags Align"
     );
     for n in 0..header.e_shnum().unwrap().get() {
-        let section_header_location = as_range_usize(header.section_header_location(n).unwrap())?;
+        let section_header_location = header
+            .section_header_location(n)
+            .unwrap()
+            .try_into_usize()?;
         let section_header =
             ElfSectionHeader::parse(&header, &buffer[section_header_location]).unwrap();
         let name = section_header.name(string_table)?;

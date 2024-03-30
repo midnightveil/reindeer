@@ -1,21 +1,21 @@
 use std::ops::Range;
 
-/// Convert a Range<T> into Range<usize> via TryInto trait.
-///
-/// # Examples
-///
-/// ```
-/// use std::ops::Range;
-/// use reindeerlib::range::as_range_usize;
-///
-/// let range = Range { start: 0u64, end: 10u64 };
-/// assert_eq!(as_range_usize(range).unwrap(), Range { start: 0usize, end: 10usize });
-/// ```
-pub fn as_range_usize<T: TryInto<usize>>(range: Range<T>) -> Result<Range<usize>, T::Error> {
-    Ok(Range {
-        start: range.start.try_into()?,
-        end: range.end.try_into()?,
-    })
+/// Convert a `Range<T>` into `Range<usize>` via TryInto-like trait.
+pub trait TryIntoRangeUsize: Sized {
+    type Error;
+    /// Convert to `Range<usize>`.
+    fn try_into_usize(self) -> Result<Range<usize>, Self::Error>;
+}
+
+impl<T: TryInto<usize>> TryIntoRangeUsize for Range<T> {
+    type Error = T::Error;
+
+    fn try_into_usize(self) -> Result<Range<usize>, Self::Error> {
+        Ok(Range {
+            start: self.start.try_into()?,
+            end: self.end.try_into()?,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -29,7 +29,7 @@ mod tests {
             end: 10u32,
         };
 
-        assert!(as_range_usize(range).is_ok());
+        assert!(range.try_into_usize().is_ok());
     }
 
     #[test]
@@ -38,7 +38,7 @@ mod tests {
             start: 0u128,
             end: 10u128,
         };
-        assert!(as_range_usize(range).is_ok());
+        assert!(range.try_into_usize().is_ok());
     }
 
     #[test]
@@ -47,6 +47,6 @@ mod tests {
             start: u128::MAX - 10,
             end: u128::MAX,
         };
-        assert!(as_range_usize(range).is_err());
+        assert!(range.try_into_usize().is_err());
     }
 }

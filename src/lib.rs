@@ -20,7 +20,7 @@ pub enum ElfHeader<'buf> {
     Elf64(&'buf Elf64Header),
 }
 
-pub fn valid_ident(e_ident: &ElfIdent) -> bool {
+fn valid_ident(e_ident: &ElfIdent) -> bool {
     e_ident.ei_magic == *b"\x7fELF"
         && e_ident.ei_data == ElfIdent::DATA_2_LSB
         && e_ident.ei_version == ElfIdent::EV_CURRENT
