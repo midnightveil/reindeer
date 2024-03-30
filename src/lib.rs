@@ -2,7 +2,12 @@ pub mod elf_aux_structures;
 pub mod elf_structures;
 pub mod range;
 
-use std::{borrow::Cow, ffi::CStr, ops::Range};
+use std::{
+    borrow::Cow,
+    ffi::CStr,
+    num::{NonZeroU16, NonZeroU64},
+    ops::Range,
+};
 
 use elf_aux_structures::*;
 use elf_structures::*;
@@ -35,39 +40,45 @@ impl<'buf> ElfHeader<'buf> {
         }
     }
 
-    fn get_string_table_index(&self) -> Option<u16> {
-        let string_table_index = match self {
+    #[inline]
+    fn get_string_table_index(&self) -> Option<NonZeroU16> {
+        match self {
             Self::Elf32(header) => header.e_shstrndx,
             Self::Elf64(header) => header.e_shstrndx,
-        };
-
-        // TODO: SH_UNDEF
-        if string_table_index == 0 {
-            None
-        } else {
-            Some(string_table_index)
         }
     }
 
-    pub fn get_num_section_headers(&self) -> u16 {
+    #[inline]
+    pub fn e_shnum(&self) -> Option<NonZeroU16> {
         match self {
             Self::Elf32(header) => header.e_shnum,
             Self::Elf64(header) => header.e_shnum,
         }
     }
 
+    #[inline]
+    pub fn e_shoff(&self) -> Option<NonZeroU64> {
+        match self {
+            Self::Elf32(header) => header.e_shoff.map(|v| v.into()),
+            Self::Elf64(header) => header.e_shoff,
+        }
+    }
+
+    #[inline]
+    pub fn e_shentsize(&self) -> u16 {
+        match self {
+            Self::Elf32(header) => header.e_shentsize,
+            Self::Elf64(header) => header.e_shentsize,
+        }
+    }
+
     pub fn get_section_header_offset(&self, header_number: u16) -> Option<Range<u64>> {
-        if header_number >= self.get_num_section_headers() {
+        if header_number >= self.e_shnum()?.get() {
             return None;
         }
 
-        let (offset, size) = match self {
-            Self::Elf32(header) => (u64::from(header.e_shoff), header.e_shentsize),
-            Self::Elf64(header) => (header.e_shoff, header.e_shentsize),
-        };
-
-        let size = u64::from(size);
-        let start = offset + u64::from(header_number) * size;
+        let size = u64::from(self.e_shentsize());
+        let start = self.e_shoff()?.get() + u64::from(header_number) * size;
         Some(Range {
             start,
             end: start + size,
@@ -75,7 +86,7 @@ impl<'buf> ElfHeader<'buf> {
     }
 
     pub fn get_string_table_header_offset(&self) -> Option<Range<u64>> {
-        self.get_section_header_offset(self.get_string_table_index()?)
+        self.get_section_header_offset(self.get_string_table_index()?.get())
     }
 }
 
@@ -88,10 +99,12 @@ pub enum ElfSectionHeader<'buf> {
 
 impl<'buf> ElfSectionHeader<'buf> {
     pub fn parse(header: &ElfHeader, bytes: &'buf [u8]) -> Option<Self> {
-        match header {
-            ElfHeader::Elf32(_) => Some(Self::Elf32(Elf32SectionHeader::ref_from_prefix(bytes)?)),
-            ElfHeader::Elf64(_) => Some(Self::Elf64(Elf64SectionHeader::ref_from_prefix(bytes)?)),
-        }
+        let sh_header = match header {
+            ElfHeader::Elf32(_) => Self::Elf32(Elf32SectionHeader::ref_from_prefix(bytes)?),
+            ElfHeader::Elf64(_) => Self::Elf64(Elf64SectionHeader::ref_from_prefix(bytes)?),
+        };
+
+        Some(sh_header)
     }
 
     pub fn get_location_within_file(&self) -> Range<u64> {

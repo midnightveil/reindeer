@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!(
         "[Nr] Name                  Type            Address          Off    Size   Flags Align"
     );
-    for n in 0..header.get_num_section_headers() {
+    for n in 0..header.e_shnum().unwrap().get() {
         let section_header_offset = as_range_usize(header.get_section_header_offset(n).unwrap())?;
         let section_header =
             ElfSectionHeader::parse(&header, &buffer[section_header_offset]).unwrap();
@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             n,
             name,
             section_header.get_type_name(),
-            sec_header.sh_addr,
+            sec_header.sh_addr.map(|v| v.get()).unwrap_or(0),
             sec_header.sh_offset,
             sec_header.sh_size,
             sec_header.sh_flags,

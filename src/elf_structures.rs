@@ -10,7 +10,10 @@
 //! [man-elf]: https://man7.org/linux/man-pages/man5/elf.5.html
 //! [sco]: https://www.sco.com/developers/gabi/latest/contents.html
 
-use std::mem::size_of;
+use std::{
+    mem::size_of,
+    num::{NonZeroU16, NonZeroU32, NonZeroU64},
+};
 
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
@@ -57,13 +60,13 @@ pub struct Elf32Header {
     /// This member gives the virtual address to which the system first
     /// transfers control, thus starting the process. If the file has no
     /// associated entry point, this member holds zero.
-    pub e_entry: u32,
+    pub e_entry: Option<NonZeroU32>,
     /// This member holds the program header table's file offset in bytes. If
     /// the file has no program header table, this member holds zero.
-    pub e_phoff: u32,
+    pub e_phoff: Option<NonZeroU32>,
     /// This member holds the section header table's file offset in bytes. If
     /// the file has no section header table, this member holds zero.
-    pub e_shoff: u32,
+    pub e_shoff: Option<NonZeroU32>,
     /// This member holds processor-specific flags associated with the file.
     pub e_flags: u32,
     /// This member holds the ELF header's size in bytes.
@@ -73,9 +76,8 @@ pub struct Elf32Header {
     pub e_phentsize: u16,
     /// This member holds the number of entries in the program header table.
     /// Thus the product of `e_phentsize` and `e_phnum` gives the table's size
-    /// in bytes. If a file has no program header table, e_phnum holds the value
-    /// zero.
-    pub e_phnum: u16,
+    /// in bytes. If a file has no program header table, `e_phnum` is None.
+    pub e_phnum: Option<NonZeroU16>,
     /// This member holds a section header's size in bytes. A
     /// section header is one entry in the section header table; all entries are
     /// the same size.
@@ -83,12 +85,12 @@ pub struct Elf32Header {
     /// This member holds the number of entries in the section header table.
     /// Thus the product of `e_shentsize` and `e_shnum` gives the section
     /// header table's size in bytes. If a file has no section header table,
-    /// `e_shnum` holds the value zero.
-    pub e_shnum: u16,
+    /// `e_shnum` is `None`.
+    pub e_shnum: Option<NonZeroU16>,
     /// This member holds the section header table index of the entry associated
     /// with the section name string table. If the file has no section name
-    /// string table, this member holds the value `SHN_UNDEF` (0).
-    pub e_shstrndx: u16,
+    /// string table, this member is `None`.
+    pub e_shstrndx: Option<NonZeroU16>,
 }
 
 #[derive(FromBytes, FromZeroes, AsBytes, Debug)]
@@ -105,13 +107,13 @@ pub struct Elf64Header {
     /// This member gives the virtual address to which the system first
     /// transfers control, thus starting the process. If the file has no
     /// associated entry point, this member holds zero.
-    pub e_entry: u64,
+    pub e_entry: Option<NonZeroU64>,
     /// This member holds the program header table's file offset in bytes. If
     /// the file has no program header table, this member holds zero.
-    pub e_phoff: u64,
+    pub e_phoff: Option<NonZeroU64>,
     /// This member holds the section header table's file offset in bytes. If
     /// the file has no section header table, this member holds zero.
-    pub e_shoff: u64,
+    pub e_shoff: Option<NonZeroU64>,
     /// This member holds processor-specific flags associated with the file.
     pub e_flags: u32,
     /// This member holds the ELF header's size in bytes.
@@ -121,9 +123,8 @@ pub struct Elf64Header {
     pub e_phentsize: u16,
     /// This member holds the number of entries in the program header table.
     /// Thus the product of `e_phentsize` and `e_phnum` gives the table's size
-    /// in bytes. If a file has no program header table, e_phnum holds the value
-    /// zero.
-    pub e_phnum: u16,
+    /// in bytes. If a file has no program header table, `e_phnum` is None.
+    pub e_phnum: Option<NonZeroU16>,
     /// This member holds a section header's size in bytes. A
     /// section header is one entry in the section header table; all entries are
     /// the same size.
@@ -131,12 +132,12 @@ pub struct Elf64Header {
     /// This member holds the number of entries in the section header table.
     /// Thus the product of `e_shentsize` and `e_shnum` gives the section
     /// header table's size in bytes. If a file has no section header table,
-    /// `e_shnum` holds the value zero.
-    pub e_shnum: u16,
+    /// `e_shnum` is `None`.
+    pub e_shnum: Option<NonZeroU16>,
     /// This member holds the section header table index of the entry associated
     /// with the section name string table. If the file has no section name
-    /// string table, this member holds the value `SHN_UNDEF` (0).
-    pub e_shstrndx: u16,
+    /// string table, this member is `None`.
+    pub e_shstrndx: Option<NonZeroU16>,
 }
 
 #[derive(FromBytes, FromZeroes, AsBytes, Debug)]
@@ -152,7 +153,7 @@ pub struct Elf32SectionHeader {
     /// If the section will appear in the memory image of a process, this member
     /// gives the address at which the section's first byte should reside.
     /// Otherwise, the member contains 0.
-    pub sh_addr: u32,
+    pub sh_addr: Option<NonZeroU32>,
     /// This member's value gives the byte offset from the beginning of the file
     /// to the first byte in the section.
     pub sh_offset: u32,
@@ -175,7 +176,7 @@ pub struct Elf32SectionHeader {
     /// For such a section, this member gives the size in bytes of each entry.
     /// The member contains 0 if the section does not hold a table of fixed-size
     /// entries.
-    pub sh_entsize: u32,
+    pub sh_entsize: Option<NonZeroU32>,
 }
 
 #[derive(FromBytes, FromZeroes, AsBytes, Debug)]
@@ -191,7 +192,7 @@ pub struct Elf64SectionHeader {
     /// If the section will appear in the memory image of a process, this member
     /// gives the address at which the section's first byte should reside.
     /// Otherwise, the member contains 0.
-    pub sh_addr: u64,
+    pub sh_addr: Option<NonZeroU64>,
     /// This member's value gives the byte offset from the beginning of the file
     /// to the first byte in the section.
     pub sh_offset: u64,
@@ -214,5 +215,5 @@ pub struct Elf64SectionHeader {
     /// For such a section, this member gives the size in bytes of each entry.
     /// The member contains 0 if the section does not hold a table of fixed-size
     /// entries.
-    pub sh_entsize: u64,
+    pub sh_entsize: Option<NonZeroU64>,
 }
