@@ -40,62 +40,6 @@ impl<'buf> ElfHeader<'buf> {
         }
     }
 
-    #[inline]
-    fn e_shstrndx(&self) -> Option<NonZeroU16> {
-        match self {
-            Self::Elf32(header) => header.e_shstrndx,
-            Self::Elf64(header) => header.e_shstrndx,
-        }
-    }
-
-    #[inline]
-    pub fn e_shnum(&self) -> Option<NonZeroU16> {
-        match self {
-            Self::Elf32(header) => header.e_shnum,
-            Self::Elf64(header) => header.e_shnum,
-        }
-    }
-
-    #[inline]
-    pub fn e_phnum(&self) -> Option<NonZeroU16> {
-        match self {
-            Self::Elf32(header) => header.e_phnum,
-            Self::Elf64(header) => header.e_phnum,
-        }
-    }
-
-    #[inline]
-    fn e_shoff(&self) -> Option<NonZeroU64> {
-        match self {
-            Self::Elf32(header) => header.e_shoff.map(Into::into),
-            Self::Elf64(header) => header.e_shoff,
-        }
-    }
-
-    #[inline]
-    fn e_phoff(&self) -> Option<NonZeroU64> {
-        match self {
-            Self::Elf32(header) => header.e_phoff.map(Into::into),
-            Self::Elf64(header) => header.e_phoff,
-        }
-    }
-
-    #[inline]
-    fn e_shentsize(&self) -> u16 {
-        match self {
-            Self::Elf32(header) => header.e_shentsize,
-            Self::Elf64(header) => header.e_shentsize,
-        }
-    }
-
-    #[inline]
-    fn e_phentsize(&self) -> u16 {
-        match self {
-            Self::Elf32(header) => header.e_phentsize,
-            Self::Elf64(header) => header.e_phentsize,
-        }
-    }
-
     pub fn section_header_location(&self, header_number: u16) -> Option<Range<u64>> {
         if header_number >= self.e_shnum()?.get() {
             return None;
@@ -156,12 +100,9 @@ impl<'buf> ElfSectionHeader<'buf> {
         }
     }
 
+    // TODO: Don't make us index stuff?
     pub fn name<'a>(&self, string_table: &'a [u8]) -> Result<&'a str, Box<dyn std::error::Error>> {
-        let sh_name_index = match self {
-            Self::Elf32(header) => header.sh_name,
-            Self::Elf64(header) => header.sh_name,
-        }
-        .try_into()?;
+        let sh_name_index = self.sh_name().try_into()?;
 
         if sh_name_index >= string_table.len() {
             // bad data.
@@ -174,12 +115,7 @@ impl<'buf> ElfSectionHeader<'buf> {
     }
 
     pub fn type_name(&self) -> Cow<'static, str> {
-        let sh_type = match self {
-            Self::Elf32(header) => header.sh_type,
-            Self::Elf64(header) => header.sh_type,
-        };
-
-        match sh_type {
+        match self.sh_type() {
             0 => "NULL".into(),
             1 => "PROGBITS".into(),
             2 => "SYMTAB".into(),
@@ -197,8 +133,8 @@ impl<'buf> ElfSectionHeader<'buf> {
             0x6ffffff6 => "GNU_HASH".into(),
             0x6ffffffe => "VERNEED".into(),
             0x6fffffff => "VERSYM".into(),
-            // unknonwn
-            _ => sh_type.to_string().into(),
+            // unknown
+            val => val.to_string().into(),
         }
     }
 }
@@ -220,46 +156,6 @@ impl<'buf> ElfProgramHeader<'buf> {
         Some(p_header)
     }
 
-    #[inline]
-    fn p_offset(&self) -> u64 {
-        match self {
-            Self::Elf32(header) => header.p_offset.into(),
-            Self::Elf64(header) => header.p_offset,
-        }
-    }
-
-    #[inline]
-    fn p_filesz(&self) -> Option<NonZeroU64> {
-        match self {
-            Self::Elf32(header) => header.p_filesz.map(Into::into),
-            Self::Elf64(header) => header.p_filesz,
-        }
-    }
-
-    #[inline]
-    fn p_memsz(&self) -> Option<NonZeroU64> {
-        match self {
-            Self::Elf32(header) => header.p_memsz.map(Into::into),
-            Self::Elf64(header) => header.p_memsz,
-        }
-    }
-
-    #[inline]
-    fn p_vaddr(&self) -> u64 {
-        match self {
-            Self::Elf32(header) => header.p_vaddr.into(),
-            Self::Elf64(header) => header.p_vaddr,
-        }
-    }
-
-    #[inline]
-    fn p_align(&self) -> u64 {
-        match self {
-            Self::Elf32(header) => header.p_align.into(),
-            Self::Elf64(header) => header.p_align,
-        }
-    }
-
     pub fn file_location(&self) -> Option<Range<u64>> {
         let start = self.p_offset();
         let size: u64 = self.p_filesz()?.into();
@@ -278,7 +174,7 @@ impl<'buf> ElfProgramHeader<'buf> {
             // The file size can not be larger than the memory size.
             return None;
         }
-        if self.p_type() == Self::PT_LOAD.0
+        if self.p_type() == Self::PT_LOAD
             && self.p_align() > 1
             && self.p_vaddr() % self.p_align() != self.p_offset() % self.p_align()
         {
@@ -297,31 +193,22 @@ impl<'buf> ElfProgramHeader<'buf> {
         })
     }
 
-    #[inline]
-    fn p_type(&self) -> u32 {
-        match self {
-            Self::Elf32(header) => header.p_type,
-            Self::Elf64(header) => header.p_type,
-        }
-    }
-
     pub fn type_name(&self) -> Cow<'static, str> {
         match self.p_type() {
-            0 => "NULL".into(),
-            1 => "LOAD".into(),
-            2 => "DYNAMIC".into(),
-            3 => "INTERP".into(),
-            4 => "NOTE".into(),
-            5 => "SHLIB".into(),
-            6 => "PHDR".into(),
-            7 => "PT_TLS".into(),
-            // https://refspecs.linuxfoundation.org/LSB_5.0.0/LSB-Core-generic/LSB-Core-generic/progheader.html
-            0x6474e550 => "GNU_EH_FRAME".into(),
-            0x6474e551 => "GNU_STACK".into(),
-            0x6474e552 => "GNU_RELRO".into(),
-            0x6474e553 => "GNU_PROPERTY".into(),
+            Self::PT_NULL => "NULL".into(),
+            Self::PT_LOAD => "LOAD".into(),
+            Self::PT_DYNAMIC => "DYNAMIC".into(),
+            Self::PT_INTERP => "INTERP".into(),
+            Self::PT_NOTE => "NOTE".into(),
+            Self::PT_SHLIB => "SHLIB".into(),
+            Self::PT_PHDR => "PHDR".into(),
+            Self::PT_TLS => "TLS".into(),
+            Self::PT_GNU_EH_FRAME => "GNU_EH_FRAME".into(),
+            Self::PT_GNU_STACK => "GNU_STACK".into(),
+            Self::PT_GNU_RELRO => "GNU_RELRO".into(),
+            Self::PT_GNU_PROPERTY => "GNU_PROPERTY".into(),
             // unknown
-            _ => self.p_type().to_string().into(),
+            val => val.0.to_string().into(),
         }
     }
 }

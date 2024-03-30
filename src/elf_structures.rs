@@ -225,7 +225,7 @@ pub struct Elf64SectionHeader {
 pub struct Elf32ProgramHeader {
     /// This member tells what kind of segment this array element describes or
     /// how to interpret the array element's information.
-    pub p_type: u32,
+    pub p_type: ElfSegmentType,
     /// This member gives the offset from the beginning of the file at which the
     /// first byte of the segment resides.
     pub p_offset: u32,
@@ -253,7 +253,7 @@ pub struct Elf32ProgramHeader {
 pub struct Elf64ProgramHeader {
     /// This member tells what kind of segment this array element describes or
     /// how to interpret the array element's information.
-    pub p_type: u32,
+    pub p_type: ElfSegmentType,
     /// This member gives flags relevant to the segment.
     pub p_flags: u32,
     /// This member gives the offset from the beginning of the file at which the
