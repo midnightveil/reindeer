@@ -63,8 +63,8 @@ fn _print_program_headers(header: ElfHeader<'_>, buffer: &[u8]) -> Result<(), Bo
             prog_header.p_offset,
             prog_header.p_vaddr,
             prog_header.p_paddr,
-            prog_header.p_filesz.map(|v| v.into()).unwrap_or(0),
-            prog_header.p_memsz.map(|v| v.into()).unwrap_or(0),
+            prog_header.p_filesz.map(Into::into).unwrap_or(0),
+            prog_header.p_memsz.map(Into::into).unwrap_or(0),
             prog_header.p_flags,
             prog_header.p_align,
         );

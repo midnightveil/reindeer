@@ -67,7 +67,7 @@ impl<'buf> ElfHeader<'buf> {
     #[inline]
     fn e_shoff(&self) -> Option<NonZeroU64> {
         match self {
-            Self::Elf32(header) => header.e_shoff.map(|v| v.into()),
+            Self::Elf32(header) => header.e_shoff.map(Into::into),
             Self::Elf64(header) => header.e_shoff,
         }
     }
@@ -75,7 +75,7 @@ impl<'buf> ElfHeader<'buf> {
     #[inline]
     fn e_phoff(&self) -> Option<NonZeroU64> {
         match self {
-            Self::Elf32(header) => header.e_phoff.map(|v| v.into()),
+            Self::Elf32(header) => header.e_phoff.map(Into::into),
             Self::Elf64(header) => header.e_phoff,
         }
     }
@@ -231,7 +231,7 @@ impl<'buf> ElfProgramHeader<'buf> {
     #[inline]
     fn p_filesz(&self) -> Option<NonZeroU64> {
         match self {
-            Self::Elf32(header) => header.p_filesz.map(|v| v.into()),
+            Self::Elf32(header) => header.p_filesz.map(Into::into),
             Self::Elf64(header) => header.p_filesz,
         }
     }
@@ -239,7 +239,7 @@ impl<'buf> ElfProgramHeader<'buf> {
     #[inline]
     fn p_memsz(&self) -> Option<NonZeroU64> {
         match self {
-            Self::Elf32(header) => header.p_memsz.map(|v| v.into()),
+            Self::Elf32(header) => header.p_memsz.map(Into::into),
             Self::Elf64(header) => header.p_memsz,
         }
     }
