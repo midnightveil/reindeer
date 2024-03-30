@@ -1,6 +1,6 @@
 use std::{env, error::Error, fs::File, io::Read};
 
-use reindeerlib::{ElfHeader, ElfSectionHeader};
+use reindeerlib::{range::as_range_usize, ElfHeader, ElfSectionHeader};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let path = env::args().nth(1).unwrap_or("/bin/true".into());
@@ -10,10 +10,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let header = ElfHeader::parse(&buffer).unwrap();
 
-    let string_table_header_offset = header.get_string_table_header_offset().unwrap();
+    let string_table_header_offset =
+        as_range_usize(header.get_string_table_header_offset().unwrap())?;
     let string_table_header =
         ElfSectionHeader::parse(&header, &buffer[string_table_header_offset]).unwrap();
-    let string_table_offset = string_table_header.get_location_within_file();
+    let string_table_offset = as_range_usize(string_table_header.get_location_within_file())?;
     let string_table = &buffer[string_table_offset];
     assert_eq!(string_table.first(), Some(0).as_ref());
     assert_eq!(string_table.last(), Some(0).as_ref());
@@ -22,10 +23,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         "[Nr] Name                  Type            Address          Off    Size   Flags Align"
     );
     for n in 0..header.get_num_section_headers() {
-        let section_header_offset = header.get_section_header_offset(n).unwrap();
+        let section_header_offset = as_range_usize(header.get_section_header_offset(n).unwrap())?;
         let section_header =
             ElfSectionHeader::parse(&header, &buffer[section_header_offset]).unwrap();
-        let name = section_header.get_name(string_table).unwrap();
+        let name = section_header.get_name(string_table)?;
 
         let ElfSectionHeader::Elf64(sec_header) = section_header else {
             panic!()
