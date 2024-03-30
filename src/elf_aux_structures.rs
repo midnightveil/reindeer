@@ -1,6 +1,6 @@
 use zerocopy::{AsBytes, FromBytes, FromZeroes};
 
-use crate::{elf_structures::ElfIdent, ElfHeader};
+use crate::*;
 
 #[derive(FromBytes, FromZeroes, AsBytes, Debug, Eq, PartialEq)]
 #[repr(C)]
@@ -48,4 +48,20 @@ impl ElfHeader<'_> {
 
     pub const EV_NONE: ElfHeaderVersion = ElfHeaderVersion(0);
     pub const EV_CURRENT: ElfHeaderVersion = ElfHeaderVersion(1);
+}
+
+#[derive(FromBytes, FromZeroes, AsBytes, Debug, Eq, PartialEq)]
+#[repr(C)]
+pub struct ElfSegmentType(pub u32);
+
+impl ElfProgramHeader<'_> {
+    pub const PT_NULL: ElfSegmentType = ElfSegmentType(0);
+    pub const PT_LOAD: ElfSegmentType = ElfSegmentType(1);
+    pub const PT_DYNAMIC: ElfSegmentType = ElfSegmentType(2);
+    pub const PT_INTERP: ElfSegmentType = ElfSegmentType(3);
+    pub const PT_NOTE: ElfSegmentType = ElfSegmentType(4);
+    pub const PT_SHLIB: ElfSegmentType = ElfSegmentType(5);
+    pub const PT_PHDR: ElfSegmentType = ElfSegmentType(6);
+    pub const PT_LOPROC: ElfSegmentType = ElfSegmentType(0x70000000);
+    pub const PT_HIPROC: ElfSegmentType = ElfSegmentType(0x7fffffff);
 }

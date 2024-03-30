@@ -30,6 +30,8 @@ const_assert!(size_of::<Elf32Header>() == 52);
 const_assert!(size_of::<Elf64Header>() == 64);
 const_assert!(size_of::<Elf32SectionHeader>() == 40);
 const_assert!(size_of::<Elf64SectionHeader>() == 64);
+const_assert!(size_of::<Elf32ProgramHeader>() == 32);
+const_assert!(size_of::<Elf64ProgramHeader>() == 56);
 
 #[derive(FromBytes, FromZeroes, AsBytes, Debug)]
 #[repr(C)]
@@ -216,4 +218,60 @@ pub struct Elf64SectionHeader {
     /// The member contains 0 if the section does not hold a table of fixed-size
     /// entries.
     pub sh_entsize: Option<NonZeroU64>,
+}
+
+#[derive(FromBytes, FromZeroes, AsBytes, Debug)]
+#[repr(C)]
+pub struct Elf32ProgramHeader {
+    /// This member tells what kind of segment this array element describes or
+    /// how to interpret the array element's information.
+    pub p_type: u32,
+    /// This member gives the offset from the beginning of the file at which the
+    /// first byte of the segment resides.
+    pub p_offset: u32,
+    /// This member gives the virtual address at which the first byte of the
+    /// segment resides in memory.
+    pub p_vaddr: u32,
+    /// On systems for which physical addressing is relevant, this member is
+    /// reserved for the segment's physical address.
+    pub p_paddr: u32,
+    /// This member gives the number of bytes in the file image of the segment;
+    /// it may be zero.
+    pub p_filesz: Option<NonZeroU32>,
+    /// This member gives the number of bytes in the memory image of the segment;
+    /// it may be zero.
+    pub p_memsz: Option<NonZeroU32>,
+    /// This member gives flags relevant to the segment.
+    pub p_flags: u32,
+    /// This member gives the value to which the segments are aligned in memory
+    /// and in the file.
+    pub p_align: u32,
+}
+
+#[derive(FromBytes, FromZeroes, AsBytes, Debug)]
+#[repr(C)]
+pub struct Elf64ProgramHeader {
+    /// This member tells what kind of segment this array element describes or
+    /// how to interpret the array element's information.
+    pub p_type: u32,
+    /// This member gives flags relevant to the segment.
+    pub p_flags: u32,
+    /// This member gives the offset from the beginning of the file at which the
+    /// first byte of the segment resides.
+    pub p_offset: u64,
+    /// This member gives the virtual address at which the first byte of the
+    /// segment resides in memory.
+    pub p_vaddr: u64,
+    /// On systems for which physical addressing is relevant, this member is
+    /// reserved for the segment's physical address.
+    pub p_paddr: u64,
+    /// This member gives the number of bytes in the file image of the segment;
+    /// it may be zero.
+    pub p_filesz: Option<NonZeroU64>,
+    /// This member gives the number of bytes in the memory image of the segment;
+    /// it may be zero.
+    pub p_memsz: Option<NonZeroU64>,
+    /// This member gives the value to which the segments are aligned in memory
+    /// and in the file.
+    pub p_align: u64,
 }

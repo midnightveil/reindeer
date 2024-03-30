@@ -14,7 +14,7 @@ use elf_structures::*;
 use zerocopy::FromBytes;
 
 /// An Elf header type, representing either 64 or 32 bit little-endian ELFs.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum ElfHeader<'buf> {
     Elf32(&'buf Elf32Header),
     Elf64(&'buf Elf64Header),
@@ -41,7 +41,7 @@ impl<'buf> ElfHeader<'buf> {
     }
 
     #[inline]
-    fn get_string_table_index(&self) -> Option<NonZeroU16> {
+    fn e_shstrndx(&self) -> Option<NonZeroU16> {
         match self {
             Self::Elf32(header) => header.e_shstrndx,
             Self::Elf64(header) => header.e_shstrndx,
@@ -57,7 +57,15 @@ impl<'buf> ElfHeader<'buf> {
     }
 
     #[inline]
-    pub fn e_shoff(&self) -> Option<NonZeroU64> {
+    pub fn e_phnum(&self) -> Option<NonZeroU16> {
+        match self {
+            Self::Elf32(header) => header.e_phnum,
+            Self::Elf64(header) => header.e_phnum,
+        }
+    }
+
+    #[inline]
+    fn e_shoff(&self) -> Option<NonZeroU64> {
         match self {
             Self::Elf32(header) => header.e_shoff.map(|v| v.into()),
             Self::Elf64(header) => header.e_shoff,
@@ -65,14 +73,30 @@ impl<'buf> ElfHeader<'buf> {
     }
 
     #[inline]
-    pub fn e_shentsize(&self) -> u16 {
+    fn e_phoff(&self) -> Option<NonZeroU64> {
+        match self {
+            Self::Elf32(header) => header.e_phoff.map(|v| v.into()),
+            Self::Elf64(header) => header.e_phoff,
+        }
+    }
+
+    #[inline]
+    fn e_shentsize(&self) -> u16 {
         match self {
             Self::Elf32(header) => header.e_shentsize,
             Self::Elf64(header) => header.e_shentsize,
         }
     }
 
-    pub fn get_section_header_offset(&self, header_number: u16) -> Option<Range<u64>> {
+    #[inline]
+    fn e_phentsize(&self) -> u16 {
+        match self {
+            Self::Elf32(header) => header.e_phentsize,
+            Self::Elf64(header) => header.e_phentsize,
+        }
+    }
+
+    pub fn section_header_location(&self, header_number: u16) -> Option<Range<u64>> {
         if header_number >= self.e_shnum()?.get() {
             return None;
         }
@@ -85,13 +109,26 @@ impl<'buf> ElfHeader<'buf> {
         })
     }
 
-    pub fn get_string_table_header_offset(&self) -> Option<Range<u64>> {
-        self.get_section_header_offset(self.get_string_table_index()?.get())
+    pub fn string_table_header_location(&self) -> Option<Range<u64>> {
+        self.section_header_location(self.e_shstrndx()?.get())
+    }
+
+    pub fn program_header_location(&self, header_number: u16) -> Option<Range<u64>> {
+        if header_number >= self.e_phnum()?.get() {
+            return None;
+        }
+
+        let size = u64::from(self.e_phentsize());
+        let start = self.e_phoff()?.get() + u64::from(header_number) * size;
+        Some(Range {
+            start,
+            end: start + size,
+        })
     }
 }
 
 /// An Elf header type, representing either 64 or 32 bit section headers.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum ElfSectionHeader<'buf> {
     Elf32(&'buf Elf32SectionHeader),
     Elf64(&'buf Elf64SectionHeader),
@@ -107,7 +144,7 @@ impl<'buf> ElfSectionHeader<'buf> {
         Some(sh_header)
     }
 
-    pub fn get_location_within_file(&self) -> Range<u64> {
+    pub fn section_location(&self) -> Range<u64> {
         let (start, size) = match self {
             Self::Elf32(header) => (u64::from(header.sh_offset), u64::from(header.sh_size)),
             Self::Elf64(header) => (header.sh_offset, header.sh_size),
@@ -119,10 +156,7 @@ impl<'buf> ElfSectionHeader<'buf> {
         }
     }
 
-    pub fn get_name<'a>(
-        &self,
-        string_table: &'a [u8],
-    ) -> Result<&'a str, Box<dyn std::error::Error>> {
+    pub fn name<'a>(&self, string_table: &'a [u8]) -> Result<&'a str, Box<dyn std::error::Error>> {
         let sh_name_index = match self {
             Self::Elf32(header) => header.sh_name,
             Self::Elf64(header) => header.sh_name,
@@ -139,7 +173,7 @@ impl<'buf> ElfSectionHeader<'buf> {
         Ok(CStr::from_bytes_until_nul(null_terminated)?.to_str()?)
     }
 
-    pub fn get_type_name(&self) -> Cow<'static, str> {
+    pub fn type_name(&self) -> Cow<'static, str> {
         let sh_type = match self {
             Self::Elf32(header) => header.sh_type,
             Self::Elf64(header) => header.sh_type,
@@ -165,6 +199,52 @@ impl<'buf> ElfSectionHeader<'buf> {
             0x6fffffff => "VERSYM".into(),
             // unknonwn
             _ => sh_type.to_string().into(),
+        }
+    }
+}
+
+/// An Elf header type, representing either 64 or 32 bit program headers.
+#[derive(Debug, Clone, Copy)]
+pub enum ElfProgramHeader<'buf> {
+    Elf32(&'buf Elf32ProgramHeader),
+    Elf64(&'buf Elf64ProgramHeader),
+}
+
+impl<'buf> ElfProgramHeader<'buf> {
+    pub fn parse(header: &ElfHeader, bytes: &'buf [u8]) -> Option<Self> {
+        let p_header = match header {
+            ElfHeader::Elf32(_) => Self::Elf32(Elf32ProgramHeader::ref_from_prefix(bytes)?),
+            ElfHeader::Elf64(_) => Self::Elf64(Elf64ProgramHeader::ref_from_prefix(bytes)?),
+        };
+
+        Some(p_header)
+    }
+
+    #[inline]
+    fn p_type(&self) -> u32 {
+        match self {
+            Self::Elf32(header) => header.p_type,
+            Self::Elf64(header) => header.p_type,
+        }
+    }
+
+    pub fn type_name(&self) -> Cow<'static, str> {
+        match self.p_type() {
+            0 => "NULL".into(),
+            1 => "LOAD".into(),
+            2 => "DYNAMIC".into(),
+            3 => "INTERP".into(),
+            4 => "NOTE".into(),
+            5 => "SHLIB".into(),
+            6 => "PHDR".into(),
+            7 => "PT_TLS".into(),
+            // https://refspecs.linuxfoundation.org/LSB_5.0.0/LSB-Core-generic/LSB-Core-generic/progheader.html
+            0x6474e550 => "GNU_EH_FRAME".into(),
+            0x6474e551 => "GNU_STACK".into(),
+            0x6474e552 => "GNU_RELRO".into(),
+            0x6474e553 => "GNU_PROPERTY".into(),
+            // unknown
+            _ => self.p_type().to_string().into(),
         }
     }
 }
