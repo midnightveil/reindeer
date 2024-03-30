@@ -144,7 +144,7 @@ impl<'buf> ElfSectionHeader<'buf> {
         Some(sh_header)
     }
 
-    pub fn section_location(&self) -> Range<u64> {
+    pub fn location(&self) -> Range<u64> {
         let (start, size) = match self {
             Self::Elf32(header) => (u64::from(header.sh_offset), u64::from(header.sh_size)),
             Self::Elf64(header) => (header.sh_offset, header.sh_size),
@@ -218,6 +218,83 @@ impl<'buf> ElfProgramHeader<'buf> {
         };
 
         Some(p_header)
+    }
+
+    #[inline]
+    fn p_offset(&self) -> u64 {
+        match self {
+            Self::Elf32(header) => header.p_offset.into(),
+            Self::Elf64(header) => header.p_offset,
+        }
+    }
+
+    #[inline]
+    fn p_filesz(&self) -> Option<NonZeroU64> {
+        match self {
+            Self::Elf32(header) => header.p_filesz.map(|v| v.into()),
+            Self::Elf64(header) => header.p_filesz,
+        }
+    }
+
+    #[inline]
+    fn p_memsz(&self) -> Option<NonZeroU64> {
+        match self {
+            Self::Elf32(header) => header.p_memsz.map(|v| v.into()),
+            Self::Elf64(header) => header.p_memsz,
+        }
+    }
+
+    #[inline]
+    fn p_vaddr(&self) -> u64 {
+        match self {
+            Self::Elf32(header) => header.p_vaddr.into(),
+            Self::Elf64(header) => header.p_vaddr,
+        }
+    }
+
+    #[inline]
+    fn p_align(&self) -> u64 {
+        match self {
+            Self::Elf32(header) => header.p_align.into(),
+            Self::Elf64(header) => header.p_align,
+        }
+    }
+
+    pub fn file_location(&self) -> Option<Range<u64>> {
+        let start = self.p_offset();
+        let size: u64 = self.p_filesz()?.into();
+
+        Some(Range {
+            start,
+            end: start + size,
+        })
+    }
+
+    pub fn memory_location(&self) -> Option<Range<u64>> {
+        let start = self.p_vaddr();
+        let size: u64 = self.p_memsz()?.into();
+
+        if self.p_filesz() > self.p_memsz() {
+            // The file size can not be larger than the memory size.
+            return None;
+        }
+        if self.p_type() == Self::PT_LOAD.0
+            && self.p_align() > 1
+            && self.p_vaddr() % self.p_align() != self.p_offset() % self.p_align()
+        {
+            // Loadable process segments must have congruent values for p_vaddr and
+            // p_offset, modulo the page size.This member gives the value to which the
+            // segments are aligned in memory and in the file. Values 0 and 1 mean that no
+            // alignment is required. Otherwise, p_align should be a positive, integral power of
+            // 2, and p_addr should equal p_offset, modulo p_align.
+            // — Section 2-2 of https://refspecs.linuxfoundation.org/elf/elf.pdf
+            return None;
+        }
+
+        Some(Range {
+            start,
+            end: start + size,
+        })
     }
 
     #[inline]

@@ -11,11 +11,26 @@ fn main() -> Result<(), Box<dyn Error>> {
     let header = ElfHeader::parse(&buffer).unwrap();
     let _string_table = get_string_table(header, &buffer)?;
 
-    _print_section_headers(header, &buffer, _string_table)?;
-    println!();
-    _print_program_headers(header, &buffer)?;
+    _print_segment_load_locations(header, &buffer)?;
+
+    // _print_section_headers(header, &buffer, _string_table)?;
+    // println!();
+    // _print_program_headers(header, &buffer)?;
 
     Ok(())
+}
+
+fn _print_segment_load_locations(header: ElfHeader<'_>, buffer: &[u8]) -> Result<(), Box<dyn Error>> {
+    Ok(for n in 0..header.e_phnum().unwrap().get() {
+        let prog_header_loc = as_range_usize(header.program_header_location(n).unwrap())?;
+
+        let program_header = ElfProgramHeader::parse(&header, &buffer[prog_header_loc]).unwrap();
+        println!(
+            "{:?} into {:?}",
+            program_header.file_location(),
+            program_header.memory_location()
+        );
+    })
 }
 
 fn _print_program_headers(header: ElfHeader<'_>, buffer: &[u8]) -> Result<(), Box<dyn Error>> {
@@ -52,7 +67,7 @@ fn get_string_table<'a>(header: ElfHeader, buffer: &'a [u8]) -> Result<&'a [u8],
         as_range_usize(header.string_table_header_location().unwrap())?;
     let string_table_header =
         ElfSectionHeader::parse(&header, &buffer[string_table_header_location]).unwrap();
-    let string_table_location = as_range_usize(string_table_header.section_location())?;
+    let string_table_location = as_range_usize(string_table_header.location())?;
     let string_table = &buffer[string_table_location];
     assert_eq!(string_table.first(), Some(0).as_ref());
     assert_eq!(string_table.last(), Some(0).as_ref());
