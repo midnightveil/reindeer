@@ -116,25 +116,25 @@ impl<'buf> ElfSectionHeader<'buf> {
 
     pub fn type_name(&self) -> Cow<'static, str> {
         match self.sh_type() {
-            0 => "NULL".into(),
-            1 => "PROGBITS".into(),
-            2 => "SYMTAB".into(),
-            3 => "STRTAB".into(),
-            4 => "RELA".into(),
-            5 => "HASH".into(),
-            6 => "DYNAMIC".into(),
-            7 => "NOTE".into(),
-            8 => "NOBITS".into(),
-            9 => "REL".into(),
-            10 => "SHLIB".into(),
-            11 => "DYNSYM".into(),
-            14 => "INIT_ARRAY".into(),
-            15 => "FINI_ARRAY".into(),
-            0x6ffffff6 => "GNU_HASH".into(),
-            0x6ffffffe => "VERNEED".into(),
-            0x6fffffff => "VERSYM".into(),
+            Self::SHT_NULL => "NULL".into(),
+            Self::SHT_PROGBITS => "PROGBITS".into(),
+            Self::SHT_SYMTAB => "SYMTAB".into(),
+            Self::SHT_STRTAB => "STRTAB".into(),
+            Self::SHT_RELA => "RELA".into(),
+            Self::SHT_HASH => "HASH".into(),
+            Self::SHT_DYNAMIC => "DYNAMIC".into(),
+            Self::SHT_NOTE => "NOTE".into(),
+            Self::SHT_NOBITS => "NOBITS".into(),
+            Self::SHT_REL => "REL".into(),
+            Self::SHT_SHLIB => "SHLIB".into(),
+            Self::SHT_DYNSYM => "DYNSYM".into(),
+            Self::SHT_INIT_ARRAY => "INIT_ARRAY".into(),
+            Self::SHT_FINI_ARRAY => "FINI_ARRAY".into(),
+            Self::SHT_GNU_HASH => "GNU_HASH".into(),
+            Self::SHT_VERNEED => "VERNEED".into(),
+            Self::SHT_VERSYM => "VERSYM".into(),
             // unknown
-            val => val.to_string().into(),
+            val => val.0.to_string().into(),
         }
     }
 }

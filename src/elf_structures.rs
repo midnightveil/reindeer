@@ -149,7 +149,7 @@ pub struct Elf32SectionHeader {
     /// into the section header string table section.
     pub sh_name: u32,
     /// This member categorizes the section's contents and semantics.
-    pub sh_type: u32,
+    pub sh_type: ElfSectionType,
     /// Sections support 1-bit flags that describe miscellaneous attributes.
     pub sh_flags: u32,
     /// If the section will appear in the memory image of a process, this member
@@ -188,7 +188,7 @@ pub struct Elf64SectionHeader {
     /// into the section header string table section.
     pub sh_name: u32,
     /// This member categorizes the section's contents and semantics.
-    pub sh_type: u32,
+    pub sh_type: ElfSectionType,
     /// Sections support 1-bit flags that describe miscellaneous attributes.
     pub sh_flags: u64,
     /// If the section will appear in the memory image of a process, this member

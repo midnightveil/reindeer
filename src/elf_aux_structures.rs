@@ -94,10 +94,31 @@ impl ElfHeader<'_> {
     enum_getter!(e_shstrndx, Option<NonZeroU16>);
 }
 
+#[derive(FromBytes, FromZeroes, AsBytes, Debug, Eq, PartialEq, Clone, Copy)]
+#[repr(C)]
+pub struct ElfSectionType(pub u32);
+
 impl ElfSectionHeader<'_> {
+    pub const SHT_NULL: ElfSectionType = ElfSectionType(0);
+    pub const SHT_PROGBITS: ElfSectionType = ElfSectionType(1);
+    pub const SHT_SYMTAB: ElfSectionType = ElfSectionType(2);
+    pub const SHT_STRTAB: ElfSectionType = ElfSectionType(3);
+    pub const SHT_RELA: ElfSectionType = ElfSectionType(4);
+    pub const SHT_HASH: ElfSectionType = ElfSectionType(5);
+    pub const SHT_DYNAMIC: ElfSectionType = ElfSectionType(6);
+    pub const SHT_NOTE: ElfSectionType = ElfSectionType(7);
+    pub const SHT_NOBITS: ElfSectionType = ElfSectionType(8);
+    pub const SHT_REL: ElfSectionType = ElfSectionType(9);
+    pub const SHT_SHLIB: ElfSectionType = ElfSectionType(10);
+    pub const SHT_DYNSYM: ElfSectionType = ElfSectionType(11);
+    pub const SHT_INIT_ARRAY: ElfSectionType = ElfSectionType(14);
+    pub const SHT_FINI_ARRAY: ElfSectionType = ElfSectionType(15);
+    pub const SHT_GNU_HASH: ElfSectionType = ElfSectionType(0x6ffffff6);
+    pub const SHT_VERNEED: ElfSectionType = ElfSectionType(0x6ffffffe);
+    pub const SHT_VERSYM: ElfSectionType = ElfSectionType(0x6fffffff);
+
     enum_getter!(sh_name, u32);
-    // todo sh_type struct
-    enum_getter!(sh_type, u32);
+    enum_getter!(sh_type, ElfSectionType);
     enum_getter!(sh_flags, u64);
     enum_getter!(sh_addr, Option<NonZeroU64>);
     enum_getter!(sh_offset, u64);
