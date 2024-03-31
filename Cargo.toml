@@ -7,4 +7,5 @@ edition = "2021"
 name = "reindeerlib"
 
 [dependencies]
+thiserror = "1.0.58"
 zerocopy = { version = "0.7.32", features = ["derive"] }

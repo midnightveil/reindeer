@@ -43,6 +43,8 @@ pub struct ElfIdentData(pub u8);
 pub struct ElfIdentVersion(pub u8);
 
 impl ElfIdent {
+    pub const ELF_MAGIC: [u8; 4] = *b"\x7fELF";
+
     pub const CLASS_NONE: ElfIdentClass = ElfIdentClass(0);
     pub const CLASS_32: ElfIdentClass = ElfIdentClass(1);
     pub const CLASS_64: ElfIdentClass = ElfIdentClass(2);

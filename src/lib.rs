@@ -1,5 +1,6 @@
 pub mod elf_aux_structures;
 pub mod elf_structures;
+pub mod errors;
 pub mod range;
 
 use std::{
@@ -11,6 +12,7 @@ use std::{
 
 use elf_aux_structures::*;
 use elf_structures::*;
+use errors::ElfError;
 use zerocopy::FromBytes;
 
 /// An Elf header type, representing either 64 or 32 bit little-endian ELFs.
@@ -20,24 +22,31 @@ pub enum ElfHeader<'buf> {
     Elf64(&'buf Elf64Header),
 }
 
-fn valid_ident(e_ident: &ElfIdent) -> bool {
-    e_ident.ei_magic == *b"\x7fELF"
-        && e_ident.ei_data == ElfIdent::DATA_2_LSB
-        && e_ident.ei_version == ElfIdent::EV_CURRENT
-}
-
 impl<'buf> ElfHeader<'buf> {
-    pub fn parse(bytes: &'buf [u8]) -> Option<Self> {
-        let e_ident: &ElfIdent = ElfIdent::ref_from_prefix(bytes)?;
-        if !valid_ident(e_ident) {
-            return None;
+    pub fn parse(bytes: &'buf [u8]) -> Result<Self, ElfError> {
+        let e_ident: &ElfIdent = ElfIdent::ref_from_prefix(bytes).ok_or(ElfError::ZeroCopyError)?;
+
+        if e_ident.ei_magic != ElfIdent::ELF_MAGIC {
+            return Err(ElfError::InvalidMagic(e_ident.ei_magic));
+        } else if e_ident.ei_data != ElfIdent::DATA_2_LSB {
+            return Err(ElfError::InvalidDataEncoding(e_ident.ei_data));
+        } else if e_ident.ei_version != ElfIdent::EV_CURRENT {
+            return Err(ElfError::InvalidVersion(e_ident.ei_version));
         }
 
-        match e_ident.ei_class {
-            ElfIdent::CLASS_32 => Some(Self::Elf32(Elf32Header::ref_from_prefix(bytes)?)),
-            ElfIdent::CLASS_64 => Some(Self::Elf64(Elf64Header::ref_from_prefix(bytes)?)),
-            ElfIdentClass(_) => None,
-        }
+        let header = match e_ident.ei_class {
+            ElfIdent::CLASS_32 => {
+                Self::Elf32(Elf32Header::ref_from_prefix(bytes).ok_or(ElfError::ZeroCopyError)?)
+            }
+            ElfIdent::CLASS_64 => {
+                Self::Elf64(Elf64Header::ref_from_prefix(bytes).ok_or(ElfError::ZeroCopyError)?)
+            }
+            ElfIdentClass(_) => {
+                return Err(ElfError::InvalidClass(e_ident.ei_class));
+            }
+        };
+
+        Ok(header)
     }
 
     pub fn section_header_location(&self, header_number: u16) -> Option<Range<u64>> {
@@ -79,13 +88,17 @@ pub enum ElfSectionHeader<'buf> {
 }
 
 impl<'buf> ElfSectionHeader<'buf> {
-    pub fn parse(header: &ElfHeader, bytes: &'buf [u8]) -> Option<Self> {
+    pub fn parse(header: &ElfHeader, bytes: &'buf [u8]) -> Result<Self, ElfError> {
         let sh_header = match header {
-            ElfHeader::Elf32(_) => Self::Elf32(Elf32SectionHeader::ref_from_prefix(bytes)?),
-            ElfHeader::Elf64(_) => Self::Elf64(Elf64SectionHeader::ref_from_prefix(bytes)?),
+            ElfHeader::Elf32(_) => Self::Elf32(
+                Elf32SectionHeader::ref_from_prefix(bytes).ok_or(ElfError::ZeroCopyError)?,
+            ),
+            ElfHeader::Elf64(_) => Self::Elf64(
+                Elf64SectionHeader::ref_from_prefix(bytes).ok_or(ElfError::ZeroCopyError)?,
+            ),
         };
 
-        Some(sh_header)
+        Ok(sh_header)
     }
 
     pub fn location(&self) -> Range<u64> {
@@ -100,17 +113,16 @@ impl<'buf> ElfSectionHeader<'buf> {
         }
     }
 
-    // TODO: Don't make us index stuff?
-    pub fn name<'a>(&self, string_table: &'a [u8]) -> Result<&'a str, Box<dyn std::error::Error>> {
+    pub fn name<'a>(&self, string_table: &'a [u8]) -> Result<&'a str, ElfError> {
+        // This should be fine on almost any platform, unless the string
+        // table is absolutely huge.
         let sh_name_index = self.sh_name().try_into()?;
 
         if sh_name_index >= string_table.len() {
-            // bad data.
-            todo!()
+            return Err(ElfError::StringTableOutOfBounds(sh_name_index));
         }
 
         let null_terminated = &string_table[sh_name_index..];
-
         Ok(CStr::from_bytes_until_nul(null_terminated)?.to_str()?)
     }
 
@@ -147,13 +159,17 @@ pub enum ElfProgramHeader<'buf> {
 }
 
 impl<'buf> ElfProgramHeader<'buf> {
-    pub fn parse(header: &ElfHeader, bytes: &'buf [u8]) -> Option<Self> {
+    pub fn parse(header: &ElfHeader, bytes: &'buf [u8]) -> Result<Self, ElfError> {
         let p_header = match header {
-            ElfHeader::Elf32(_) => Self::Elf32(Elf32ProgramHeader::ref_from_prefix(bytes)?),
-            ElfHeader::Elf64(_) => Self::Elf64(Elf64ProgramHeader::ref_from_prefix(bytes)?),
+            ElfHeader::Elf32(_) => Self::Elf32(
+                Elf32ProgramHeader::ref_from_prefix(bytes).ok_or(ElfError::ZeroCopyError)?,
+            ),
+            ElfHeader::Elf64(_) => Self::Elf64(
+                Elf64ProgramHeader::ref_from_prefix(bytes).ok_or(ElfError::ZeroCopyError)?,
+            ),
         };
 
-        Some(p_header)
+        Ok(p_header)
     }
 
     pub fn file_location(&self) -> Option<Range<u64>> {
@@ -166,13 +182,15 @@ impl<'buf> ElfProgramHeader<'buf> {
         })
     }
 
-    pub fn memory_location(&self) -> Option<Range<u64>> {
+    pub fn memory_location(&self) -> Result<Option<Range<u64>>, ElfError> {
         let start = self.p_vaddr();
-        let size: u64 = self.p_memsz()?.into();
+        let Some(size): Option<u64> = self.p_memsz().map(Into::into) else {
+            // the memory image of the segment may be zero.
+            return Ok(None);
+        };
 
         if self.p_filesz() > self.p_memsz() {
-            // The file size can not be larger than the memory size.
-            return None;
+            return Err(ElfError::FileSzLargerThanMemSz);
         }
         if self.p_type() == Self::PT_LOAD
             && self.p_align() > 1
@@ -184,13 +202,13 @@ impl<'buf> ElfProgramHeader<'buf> {
             // alignment is required. Otherwise, p_align should be a positive, integral power of
             // 2, and p_addr should equal p_offset, modulo p_align.
             // — Section 2-2 of https://refspecs.linuxfoundation.org/elf/elf.pdf
-            return None;
+            return Err(ElfError::IncongurentSegmentAlignment);
         }
 
-        Some(Range {
+        Ok(Some(Range {
             start,
             end: start + size,
-        })
+        }))
     }
 
     pub fn type_name(&self) -> Cow<'static, str> {
@@ -230,7 +248,7 @@ mod tests {
             buffer
         };
 
-        assert!(ElfHeader::parse(&buffer).is_some());
+        assert!(ElfHeader::parse(&buffer).is_ok());
     }
 
     #[test]
@@ -246,7 +264,7 @@ mod tests {
             buffer
         };
 
-        assert!(ElfHeader::parse(&buffer).is_some());
+        assert!(ElfHeader::parse(&buffer).is_ok());
     }
 
     #[test]
@@ -262,7 +280,7 @@ mod tests {
             buffer
         };
 
-        assert!(ElfHeader::parse(&buffer).is_none());
+        assert!(ElfHeader::parse(&buffer).is_err_and(|e| matches!(e, ElfError::InvalidMagic(_))));
     }
 
     #[test]
@@ -278,6 +296,6 @@ mod tests {
             buffer
         };
 
-        assert!(ElfHeader::parse(&buffer).is_none());
+        assert!(ElfHeader::parse(&buffer).is_err_and(|e| matches!(e, ElfError::InvalidDataEncoding(_))));
     }
 }
