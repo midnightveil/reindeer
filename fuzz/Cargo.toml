@@ -14,8 +14,8 @@ libfuzzer-sys = "0.4"
 path = "../reindeer"
 
 [[bin]]
-name = "fuzz_target_1"
-path = "fuzz_targets/fuzz_target_1.rs"
+name = "main_target"
+path = "fuzz_targets/main_target.rs"
 test = false
 doc = false
 bench = false

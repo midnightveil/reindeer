@@ -54,11 +54,13 @@ impl<'buf> ElfHeader<'buf> {
             return None;
         }
 
+        // TODO: Reduce boilerplate.
         let size = u64::from(self.e_shentsize());
-        let start = self.e_shoff()?.get() + u64::from(header_number) * size;
+        let start = self.e_shoff()?.get().saturating_add(u64::from(header_number).saturating_mul(size));
+
         Some(Range {
             start,
-            end: start + size,
+            end: start.saturating_add(size),
         })
     }
 
@@ -72,10 +74,10 @@ impl<'buf> ElfHeader<'buf> {
         }
 
         let size = u64::from(self.e_phentsize());
-        let start = self.e_phoff()?.get() + u64::from(header_number) * size;
+        let start = self.e_phoff()?.get().saturating_add(u64::from(header_number).saturating_mul(size));
         Some(Range {
             start,
-            end: start + size,
+            end: start.saturating_add(size),
         })
     }
 }
@@ -109,7 +111,7 @@ impl<'buf> ElfSectionHeader<'buf> {
 
         Range {
             start,
-            end: start + size,
+            end: start.saturating_add(size),
         }
     }
 
@@ -122,6 +124,7 @@ impl<'buf> ElfSectionHeader<'buf> {
             return Err(ElfError::StringTableOutOfBounds(sh_name_index));
         }
 
+        // TODO: This should be bad...
         let null_terminated = &string_table[sh_name_index..];
         Ok(CStr::from_bytes_until_nul(null_terminated)?.to_str()?)
     }
@@ -178,7 +181,7 @@ impl<'buf> ElfProgramHeader<'buf> {
 
         Some(Range {
             start,
-            end: start + size,
+            end: start.saturating_add(size),
         })
     }
 
@@ -207,7 +210,7 @@ impl<'buf> ElfProgramHeader<'buf> {
 
         Ok(Some(Range {
             start,
-            end: start + size,
+            end: start.saturating_add(size),
         }))
     }
 
