@@ -1,6 +1,6 @@
 use std::{env, error::Error, fs::File, io::Read};
 
-use reindeerlib::{range::TryIntoRangeUsize, ElfHeader, ElfProgramHeader, ElfSectionHeader};
+use reindeer::{range::TryIntoRangeUsize, ElfHeader, ElfProgramHeader, ElfSectionHeader};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let path = env::args().nth(1).unwrap_or("/bin/true".into());
@@ -10,12 +10,23 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let header = ElfHeader::parse(&buffer).unwrap();
     let _string_table = get_string_table(header, &buffer)?;
-
-    _print_segment_load_locations(header, &buffer)?;
-
+    // _print_segment_load_locations(header, &buffer)?;
     // _print_section_headers(header, &buffer, _string_table)?;
     // println!();
     // _print_program_headers(header, &buffer)?;
+
+    for n in 0..header.e_phnum().unwrap().get() {
+        let prog_header_loc = header
+            .program_header_location(n)
+            .unwrap()
+            .try_into_usize()?;
+        let prog_header = ElfProgramHeader::parse(&header, &buffer[prog_header_loc]).unwrap();
+        if prog_header.p_type() != ElfProgramHeader::PT_LOAD {
+            continue;
+        }
+
+        println!("{:?}", prog_header);
+    }
 
     Ok(())
 }

@@ -1,0 +1,8 @@
+[package]
+name = "reindeer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+thiserror = "1.0.58"
+zerocopy = { version = "0.7.32", features = ["derive"] }
