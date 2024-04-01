@@ -47,5 +47,5 @@ macro_rules! declare_constants {
     };
 }
 
-pub(crate) use enum_getter;
 pub(crate) use declare_constants;
+pub(crate) use enum_getter;

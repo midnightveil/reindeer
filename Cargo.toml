@@ -1,3 +1,4 @@
 [workspace]
 members = ["reindeer", "binaries/*", "fuzz"]
+default-members = ["reindeer", "binaries/*"]
 resolver = "2"

@@ -19,6 +19,8 @@ pub enum ElfError {
     TooBigForUsize(#[from] TryFromIntError),
     #[error("string table index {} is outside the string table", .0)]
     StringTableOutOfBounds(usize),
+    #[error("string table first/last bytes were not zero")]
+    StringTableNotZeroTerminated,
     #[error("{}", .0)]
     FromBytesUntilNull(#[from] FromBytesUntilNulError),
     #[error("{}", .0)]

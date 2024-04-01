@@ -1,6 +1,9 @@
 use std::{env, error::Error, fs::File, io::Read};
 
-use reindeer::{range::TryIntoRangeUsize, ElfHeader, ElfProgramHeader, ElfSectionHeader, elf_aux_structures::ElfSegmentType};
+use reindeer::{
+    elf_aux_structures::ElfSegmentType, range::TryIntoRangeUsize, ElfHeader, ElfProgramHeader,
+    ElfSectionHeader, ElfStringTable,
+};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let path = env::args().nth(1).unwrap_or("/bin/true".into());
@@ -84,7 +87,10 @@ fn _print_program_headers(header: ElfHeader<'_>, buffer: &[u8]) -> Result<(), Bo
     Ok(())
 }
 
-fn get_string_table<'a>(header: ElfHeader, buffer: &'a [u8]) -> Result<&'a [u8], Box<dyn Error>> {
+fn get_string_table<'a>(
+    header: ElfHeader,
+    buffer: &'a [u8],
+) -> Result<ElfStringTable<'a>, Box<dyn Error>> {
     let string_table_header_location = header
         .string_table_header_location()
         .unwrap()
@@ -92,17 +98,14 @@ fn get_string_table<'a>(header: ElfHeader, buffer: &'a [u8]) -> Result<&'a [u8],
     let string_table_header =
         ElfSectionHeader::parse(&header, &buffer[string_table_header_location]).unwrap();
     let string_table_location = string_table_header.location().try_into_usize()?;
-    let string_table = &buffer[string_table_location];
-    assert_eq!(string_table.first(), Some(0).as_ref());
-    assert_eq!(string_table.last(), Some(0).as_ref());
 
-    Ok(string_table)
+    Ok(ElfStringTable::parse(&buffer[string_table_location])?)
 }
 
 fn _print_section_headers(
     header: ElfHeader,
     buffer: &[u8],
-    string_table: &[u8],
+    string_table: ElfStringTable,
 ) -> Result<(), Box<dyn Error>> {
     println!(
         "[Nr] Name                  Type            Address          Off    Size   Flags Align"
@@ -114,7 +117,7 @@ fn _print_section_headers(
             .try_into_usize()?;
         let section_header =
             ElfSectionHeader::parse(&header, &buffer[section_header_location]).unwrap();
-        let name = section_header.name(string_table)?;
+        let name = string_table.section_name(section_header)?;
 
         let ElfSectionHeader::Elf64(sec_header) = section_header else {
             panic!()

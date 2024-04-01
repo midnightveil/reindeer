@@ -56,7 +56,6 @@ impl<'buf> ElfHeader<'buf> {
             return None;
         }
 
-        // TODO: Reduce boilerplate.
         let size = u64::from(self.e_shentsize());
         let start = self
             .e_shoff()?
@@ -122,20 +121,6 @@ impl<'buf> ElfSectionHeader<'buf> {
             end: start.saturating_add(size),
         }
     }
-
-    pub fn name<'a>(&self, string_table: &'a [u8]) -> Result<&'a str, ElfError> {
-        // This should be fine on almost any platform, unless the string
-        // table is absolutely huge.
-        let sh_name_index = self.sh_name().try_into()?;
-
-        if sh_name_index >= string_table.len() {
-            return Err(ElfError::StringTableOutOfBounds(sh_name_index));
-        }
-
-        // TODO: This should be bad...
-        let null_terminated = &string_table[sh_name_index..];
-        Ok(CStr::from_bytes_until_nul(null_terminated)?.to_str()?)
-    }
 }
 
 /// An Elf header type, representing either 64 or 32 bit program headers.
@@ -196,6 +181,38 @@ impl<'buf> ElfProgramHeader<'buf> {
             start,
             end: start.saturating_add(size),
         }))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ElfStringTable<'buf> {
+    buffer: &'buf [u8],
+}
+
+impl<'buf> ElfStringTable<'buf> {
+    pub fn parse(buffer: &'buf [u8]) -> Result<ElfStringTable<'buf>, ElfError> {
+        // The first byte, which is index zero, is defined to hold a null
+        // character. Likewise, a string table's last byte is defined to hold a
+        // null character, ensuring null termination for all strings.
+        // — Section 1-18 of https://refspecs.linuxfoundation.org/elf/elf.pdf
+
+        match (buffer.first(), buffer.last()) {
+            (Some(0), Some(0)) => Ok(Self { buffer }),
+            _ => Err(ElfError::StringTableNotZeroTerminated),
+        }
+    }
+
+    pub fn section_name(&self, header: ElfSectionHeader) -> Result<&str, ElfError> {
+        // This should be fine on almost any platform, unless the string
+        // table is absolutely huge.
+        let sh_name_index = header.sh_name().try_into()?;
+
+        let null_terminated = self
+            .buffer
+            .get(sh_name_index..)
+            .ok_or(ElfError::StringTableOutOfBounds(sh_name_index))?;
+
+        Ok(CStr::from_bytes_until_nul(null_terminated)?.to_str()?)
     }
 }
 

@@ -3,7 +3,9 @@
 use std::error::Error;
 
 use libfuzzer_sys::{fuzz_target, Corpus};
-use reindeer::{range::TryIntoRangeUsize, ElfHeader, ElfProgramHeader, ElfSectionHeader};
+use reindeer::{
+    range::TryIntoRangeUsize, ElfHeader, ElfProgramHeader, ElfSectionHeader, ElfStringTable,
+};
 
 fuzz_target!(|buffer: &[u8]| -> Corpus {
     fn inner(buffer: &[u8]) -> Result<(), Box<dyn Error>> {
@@ -12,16 +14,19 @@ fuzz_target!(|buffer: &[u8]| -> Corpus {
         let program_headers = parse_program_headers(header, buffer)?;
         let section_headers = parse_section_headers(header, buffer)?;
 
-        let _section_names: Result<Vec<_>, _> = section_headers.iter().map(|header| {
-            header.name(string_table)
-        }).collect();
+        let _section_names: Result<Vec<_>, _> = section_headers
+            .iter()
+            .map(|header| string_table.section_name(*header))
+            .collect();
 
-        let _segment_mem_locations: Result<Vec<_>, _> = program_headers.iter().map(|header| {
-            header.memory_location()
-        }).collect();
-        let _segment_file_locations: Vec<_> = program_headers.iter().map(|header| {
-            header.file_location()
-        }).collect();
+        let _segment_mem_locations: Result<Vec<_>, _> = program_headers
+            .iter()
+            .map(|header| header.memory_location())
+            .collect();
+        let _segment_file_locations: Vec<_> = program_headers
+            .iter()
+            .map(|header| header.file_location())
+            .collect();
 
         Ok(())
     }
@@ -32,7 +37,10 @@ fuzz_target!(|buffer: &[u8]| -> Corpus {
     }
 });
 
-fn get_string_table<'a>(header: ElfHeader, buffer: &'a [u8]) -> Result<&'a [u8], Box<dyn Error>> {
+fn get_string_table<'a>(
+    header: ElfHeader,
+    buffer: &'a [u8],
+) -> Result<ElfStringTable<'a>, Box<dyn Error>> {
     let string_table_header_location = header
         .string_table_header_location()
         .ok_or("oops, no string table")?
@@ -48,11 +56,7 @@ fn get_string_table<'a>(header: ElfHeader, buffer: &'a [u8]) -> Result<&'a [u8],
         .get(string_table_location)
         .ok_or("oob for string table itself")?;
 
-    // TODO: Handle well...
-    // assert_eq!(string_table.first(), Some(0).as_ref());
-    // assert_eq!(string_table.last(), Some(0).as_ref());
-
-    Ok(string_table)
+    Ok(ElfStringTable::parse(&string_table)?)
 }
 
 fn parse_program_headers<'a>(
