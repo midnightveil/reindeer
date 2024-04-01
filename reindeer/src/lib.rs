@@ -3,6 +3,8 @@ pub mod elf_structures;
 pub mod errors;
 pub mod range;
 
+mod macros;
+
 use std::{
     borrow::Cow,
     ffi::CStr,
@@ -28,17 +30,17 @@ impl<'buf> ElfHeader<'buf> {
 
         if e_ident.ei_magic != ElfIdent::ELF_MAGIC {
             return Err(ElfError::InvalidMagic(e_ident.ei_magic));
-        } else if e_ident.ei_data != ElfIdent::DATA_2_LSB {
+        } else if e_ident.ei_data != ElfIdentData::DATA_2_LSB {
             return Err(ElfError::InvalidDataEncoding(e_ident.ei_data));
-        } else if e_ident.ei_version != ElfIdent::EV_CURRENT {
+        } else if e_ident.ei_version != ElfIdentVersion::EV_CURRENT {
             return Err(ElfError::InvalidVersion(e_ident.ei_version));
         }
 
         let header = match e_ident.ei_class {
-            ElfIdent::CLASS_32 => {
+            ElfIdentClass::CLASS_32 => {
                 Self::Elf32(Elf32Header::ref_from_prefix(bytes).ok_or(ElfError::ZeroCopyError)?)
             }
-            ElfIdent::CLASS_64 => {
+            ElfIdentClass::CLASS_64 => {
                 Self::Elf64(Elf64Header::ref_from_prefix(bytes).ok_or(ElfError::ZeroCopyError)?)
             }
             ElfIdentClass(_) => {
@@ -56,7 +58,10 @@ impl<'buf> ElfHeader<'buf> {
 
         // TODO: Reduce boilerplate.
         let size = u64::from(self.e_shentsize());
-        let start = self.e_shoff()?.get().saturating_add(u64::from(header_number).saturating_mul(size));
+        let start = self
+            .e_shoff()?
+            .get()
+            .saturating_add(u64::from(header_number).saturating_mul(size));
 
         Some(Range {
             start,
@@ -74,7 +79,10 @@ impl<'buf> ElfHeader<'buf> {
         }
 
         let size = u64::from(self.e_phentsize());
-        let start = self.e_phoff()?.get().saturating_add(u64::from(header_number).saturating_mul(size));
+        let start = self
+            .e_phoff()?
+            .get()
+            .saturating_add(u64::from(header_number).saturating_mul(size));
         Some(Range {
             start,
             end: start.saturating_add(size),
@@ -128,30 +136,6 @@ impl<'buf> ElfSectionHeader<'buf> {
         let null_terminated = &string_table[sh_name_index..];
         Ok(CStr::from_bytes_until_nul(null_terminated)?.to_str()?)
     }
-
-    pub fn type_name(&self) -> Cow<'static, str> {
-        match self.sh_type() {
-            Self::SHT_NULL => "NULL".into(),
-            Self::SHT_PROGBITS => "PROGBITS".into(),
-            Self::SHT_SYMTAB => "SYMTAB".into(),
-            Self::SHT_STRTAB => "STRTAB".into(),
-            Self::SHT_RELA => "RELA".into(),
-            Self::SHT_HASH => "HASH".into(),
-            Self::SHT_DYNAMIC => "DYNAMIC".into(),
-            Self::SHT_NOTE => "NOTE".into(),
-            Self::SHT_NOBITS => "NOBITS".into(),
-            Self::SHT_REL => "REL".into(),
-            Self::SHT_SHLIB => "SHLIB".into(),
-            Self::SHT_DYNSYM => "DYNSYM".into(),
-            Self::SHT_INIT_ARRAY => "INIT_ARRAY".into(),
-            Self::SHT_FINI_ARRAY => "FINI_ARRAY".into(),
-            Self::SHT_GNU_HASH => "GNU_HASH".into(),
-            Self::SHT_VERNEED => "VERNEED".into(),
-            Self::SHT_VERSYM => "VERSYM".into(),
-            // unknown
-            val => val.0.to_string().into(),
-        }
-    }
 }
 
 /// An Elf header type, representing either 64 or 32 bit program headers.
@@ -195,7 +179,7 @@ impl<'buf> ElfProgramHeader<'buf> {
         if self.p_filesz() > self.p_memsz() {
             return Err(ElfError::FileSzLargerThanMemSz);
         }
-        if self.p_type() == Self::PT_LOAD
+        if self.p_type() == ElfSegmentType::PT_LOAD
             && self.p_align() > 1
             && self.p_vaddr() % self.p_align() != self.p_offset() % self.p_align()
         {
@@ -213,25 +197,6 @@ impl<'buf> ElfProgramHeader<'buf> {
             end: start.saturating_add(size),
         }))
     }
-
-    pub fn type_name(&self) -> Cow<'static, str> {
-        match self.p_type() {
-            Self::PT_NULL => "NULL".into(),
-            Self::PT_LOAD => "LOAD".into(),
-            Self::PT_DYNAMIC => "DYNAMIC".into(),
-            Self::PT_INTERP => "INTERP".into(),
-            Self::PT_NOTE => "NOTE".into(),
-            Self::PT_SHLIB => "SHLIB".into(),
-            Self::PT_PHDR => "PHDR".into(),
-            Self::PT_TLS => "TLS".into(),
-            Self::PT_GNU_EH_FRAME => "GNU_EH_FRAME".into(),
-            Self::PT_GNU_STACK => "GNU_STACK".into(),
-            Self::PT_GNU_RELRO => "GNU_RELRO".into(),
-            Self::PT_GNU_PROPERTY => "GNU_PROPERTY".into(),
-            // unknown
-            val => val.0.to_string().into(),
-        }
-    }
 }
 
 #[cfg(test)]
@@ -244,9 +209,9 @@ mod tests {
             // 64 is the length of ELF64 header.
             let mut buffer = [0; 64];
             buffer[..4].copy_from_slice(b"\x7fELF");
-            buffer[4] = ElfIdent::CLASS_64.0;
-            buffer[5] = ElfIdent::DATA_2_LSB.0;
-            buffer[6] = ElfIdent::EV_CURRENT.0;
+            buffer[4] = ElfIdentClass::CLASS_64.0;
+            buffer[5] = ElfIdentData::DATA_2_LSB.0;
+            buffer[6] = ElfIdentVersion::EV_CURRENT.0;
 
             buffer
         };
@@ -260,9 +225,9 @@ mod tests {
             // 52 is the length of ELF32 header.
             let mut buffer = [0; 52];
             buffer[..4].copy_from_slice(b"\x7fELF");
-            buffer[4] = ElfIdent::CLASS_32.0;
-            buffer[5] = ElfIdent::DATA_2_LSB.0;
-            buffer[6] = ElfIdent::EV_CURRENT.0;
+            buffer[4] = ElfIdentClass::CLASS_32.0;
+            buffer[5] = ElfIdentData::DATA_2_LSB.0;
+            buffer[6] = ElfIdentVersion::EV_CURRENT.0;
 
             buffer
         };
@@ -276,9 +241,9 @@ mod tests {
             // 64 is the length of ELF64 header.
             let mut buffer = [0; 64];
             buffer[..4].copy_from_slice(b"0000");
-            buffer[4] = ElfIdent::CLASS_64.0;
-            buffer[5] = ElfIdent::DATA_2_LSB.0;
-            buffer[6] = ElfIdent::EV_CURRENT.0;
+            buffer[4] = ElfIdentClass::CLASS_64.0;
+            buffer[5] = ElfIdentData::DATA_2_LSB.0;
+            buffer[6] = ElfIdentVersion::EV_CURRENT.0;
 
             buffer
         };
@@ -292,13 +257,15 @@ mod tests {
             // 64 is the length of ELF64 header.
             let mut buffer = [0; 64];
             buffer[..4].copy_from_slice(b"\x7fELF");
-            buffer[4] = ElfIdent::CLASS_64.0;
-            buffer[5] = ElfIdent::DATA_2_MSB.0;
-            buffer[6] = ElfIdent::EV_CURRENT.0;
+            buffer[4] = ElfIdentClass::CLASS_64.0;
+            buffer[5] = ElfIdentData::DATA_2_MSB.0;
+            buffer[6] = ElfIdentVersion::EV_CURRENT.0;
 
             buffer
         };
 
-        assert!(ElfHeader::parse(&buffer).is_err_and(|e| matches!(e, ElfError::InvalidDataEncoding(_))));
+        assert!(
+            ElfHeader::parse(&buffer).is_err_and(|e| matches!(e, ElfError::InvalidDataEncoding(_)))
+        );
     }
 }

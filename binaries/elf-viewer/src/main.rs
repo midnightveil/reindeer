@@ -1,6 +1,6 @@
 use std::{env, error::Error, fs::File, io::Read};
 
-use reindeer::{range::TryIntoRangeUsize, ElfHeader, ElfProgramHeader, ElfSectionHeader};
+use reindeer::{range::TryIntoRangeUsize, ElfHeader, ElfProgramHeader, ElfSectionHeader, elf_aux_structures::ElfSegmentType};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let path = env::args().nth(1).unwrap_or("/bin/true".into());
@@ -11,9 +11,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let header = ElfHeader::parse(&buffer).unwrap();
     let _string_table = get_string_table(header, &buffer)?;
     // _print_segment_load_locations(header, &buffer)?;
-    // _print_section_headers(header, &buffer, _string_table)?;
-    // println!();
-    // _print_program_headers(header, &buffer)?;
+    _print_section_headers(header, &buffer, _string_table)?;
+    println!();
+    _print_program_headers(header, &buffer)?;
 
     for n in 0..header.e_phnum().unwrap().get() {
         let prog_header_loc = header
@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .unwrap()
             .try_into_usize()?;
         let prog_header = ElfProgramHeader::parse(&header, &buffer[prog_header_loc]).unwrap();
-        if prog_header.p_type() != ElfProgramHeader::PT_LOAD {
+        if prog_header.p_type() != ElfSegmentType::PT_LOAD {
             continue;
         }
 
@@ -69,8 +69,8 @@ fn _print_program_headers(header: ElfHeader<'_>, buffer: &[u8]) -> Result<(), Bo
         };
 
         println!(
-            "{:<14} 0x{:06x} {:018x} {:018x} 0x{:06x} 0x{:06x} {:5} 0x{:<4x}",
-            program_header.type_name(),
+            "{:<15} 0x{:06x} {:018x} {:018x} 0x{:06x} 0x{:06x} {:5} 0x{:<4x}",
+            program_header.p_type().name(),
             prog_header.p_offset,
             prog_header.p_vaddr,
             prog_header.p_paddr,
@@ -124,7 +124,7 @@ fn _print_section_headers(
             "[{:02}] {:<21} {:<15} {:016x} {:06x} {:06x} {:5x} {:5}",
             n,
             name,
-            section_header.type_name(),
+            section_header.sh_type().name(),
             sec_header.sh_addr.map(|v| v.get()).unwrap_or(0),
             sec_header.sh_offset,
             sec_header.sh_size,

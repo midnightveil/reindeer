@@ -8,9 +8,9 @@ pub enum ElfError {
     ZeroCopyError,
     #[error("invalid magic number, expected {:?}, found {:?}", ElfIdent::ELF_MAGIC, .0)]
     InvalidMagic([u8; 4]),
-    #[error("invalid data encoding, expected {:?}, found {:?}", ElfIdent::DATA_2_LSB, .0)]
+    #[error("invalid data encoding, expected {:?}, found {:?}", ElfIdentData::DATA_2_LSB, .0)]
     InvalidDataEncoding(ElfIdentData),
-    #[error("invalid elf ident version, expected {:?}, found {:?}", ElfIdent::EV_CURRENT, .0)]
+    #[error("invalid elf ident version, expected {:?}, found {:?}", ElfIdentVersion::EV_CURRENT, .0)]
     InvalidVersion(ElfIdentVersion),
     #[error("invalid elf ident class, found {:?}", .0)]
     InvalidClass(ElfIdentClass),
