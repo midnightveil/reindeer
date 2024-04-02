@@ -8,33 +8,40 @@ use reindeer::{
 };
 
 fuzz_target!(|buffer: &[u8]| -> Corpus {
-    fn inner(buffer: &[u8]) -> Result<(), Box<dyn Error>> {
-        let header = ElfHeader::parse(buffer)?;
-        let string_table = get_string_table(header, buffer)?;
-        let program_headers = parse_program_headers(header, buffer)?;
-        let section_headers = parse_section_headers(header, buffer)?;
+    let mut should_keep = Corpus::Keep;
 
-        let _section_names: Result<Vec<_>, _> = section_headers
-            .iter()
-            .map(|header| string_table.section_name(*header))
-            .collect();
+    let Ok(header) = ElfHeader::parse(buffer) else {
+        return Corpus::Reject;
+    };
 
-        let _segment_mem_locations: Result<Vec<_>, _> = program_headers
-            .iter()
-            .map(|header| header.memory_location())
-            .collect();
+    if let Ok(program_headers) = parse_program_headers(header, buffer) {
         let _segment_file_locations: Vec<_> = program_headers
             .iter()
             .map(|header| header.file_location())
             .collect();
 
-        Ok(())
+        if let Err(_segment_mem_locations) = program_headers
+            .iter()
+            .map(|header| header.memory_location())
+            .collect::<Result<Vec<_>, _>>()
+        {
+            should_keep = Corpus::Reject;
+        }
     }
 
-    match inner(buffer) {
-        Ok(_) => Corpus::Keep,
-        Err(_) => Corpus::Reject,
+    if let Ok(section_headers) = parse_section_headers(header, buffer) {
+        if let Ok(string_table) = get_string_table(header, buffer) {
+            if let Err(_section_names) = section_headers
+                .iter()
+                .map(|header| string_table.section_name(*header))
+                .collect::<Result<Vec<_>, _>>()
+            {
+                should_keep = Corpus::Reject;
+            }
+        }
     }
+
+    should_keep
 });
 
 fn get_string_table<'a>(
