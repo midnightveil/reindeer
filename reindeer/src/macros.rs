@@ -35,12 +35,12 @@ macro_rules! declare_constants {
                 pub const $name: Self = Self($value);
             )*
 
-            pub fn name(self) -> Cow<'static, str> {
+            pub fn name(self) -> Option<&'static str> {
                 match self {
                     $(
                         Self::$name => stringify!($name).into(),
                     )*
-                    Self(value) => format!("{:#x}", value).into(),
+                    Self(_) => None,
                 }
             }
         }

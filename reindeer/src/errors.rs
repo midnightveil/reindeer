@@ -1,33 +1,33 @@
-use std::{ffi::FromBytesUntilNulError, num::TryFromIntError, str::Utf8Error};
+use core::{ffi::FromBytesUntilNulError, num::TryFromIntError, str::Utf8Error};
 
 use crate::{elf_aux_structures::*, elf_structures::ElfIdent};
 
-#[derive(thiserror::Error, Debug)]
+#[derive(err_derive::Error, Debug)]
 pub enum ElfError {
-    #[error("buffer is smaller than expected, or is not aligned")]
+    #[error(display = "buffer is smaller than expected, or is not aligned")]
     ZeroCopyError,
-    #[error("invalid magic number, expected {:?}, found {:?}", ElfIdent::ELF_MAGIC, .0)]
+    #[error(display = "invalid magic number, expected {:?}, found {:?}", ElfIdent::ELF_MAGIC, _0)]
     InvalidMagic([u8; 4]),
-    #[error("invalid data encoding, expected {:?}, found {:?}", ElfIdentData::DATA_2_LSB, .0)]
+    #[error(display = "invalid data encoding, expected {:?}, found {:?}", ElfIdentData::DATA_2_LSB, _0)]
     InvalidDataEncoding(ElfIdentData),
-    #[error("invalid elf ident version, expected {:?}, found {:?}", ElfIdentVersion::EV_CURRENT, .0)]
+    #[error(display = "invalid elf ident version, expected {:?}, found {:?}", ElfIdentVersion::EV_CURRENT, _0)]
     InvalidVersion(ElfIdentVersion),
-    #[error("invalid elf ident class, found {:?}", .0)]
+    #[error(display = "invalid elf ident class, found {:?}", _0)]
     InvalidClass(ElfIdentClass),
 
-    #[error("too big for usize: {}", .0)]
-    TooBigForUsize(#[from] TryFromIntError),
-    #[error("string table index {} is outside the string table", .0)]
+    #[error(display = "too big for usize: {}", _0)]
+    TooBigForUsize(#[source] TryFromIntError),
+    #[error(display = "string table index {} is outside the string table", _0)]
     StringTableOutOfBounds(usize),
-    #[error("string table first/last bytes were not zero")]
+    #[error(display = "string table first/last bytes were not zero")]
     StringTableNotZeroTerminated,
-    #[error("{}", .0)]
-    FromBytesUntilNull(#[from] FromBytesUntilNulError),
-    #[error("{}", .0)]
-    Utf8Error(#[from] Utf8Error),
+    #[error(display = "{}", _0)]
+    FromBytesUntilNull(#[source] FromBytesUntilNulError),
+    #[error(display = "{}", _0)]
+    Utf8Error(#[source] Utf8Error),
 
-    #[error("The file size can not be larger than the memory size.")]
+    #[error(display = "The file size can not be larger than the memory size.")]
     FileSzLargerThanMemSz,
-    #[error("")]
+    #[error(display = "segment alignment is congruent with address")]
     IncongurentSegmentAlignment,
 }

@@ -1,4 +1,4 @@
-use std::ops::Range;
+use core::ops::Range;
 
 /// Convert a `Range<T>` into `Range<usize>` via TryInto-like trait.
 pub trait TryIntoRangeUsize: Sized {

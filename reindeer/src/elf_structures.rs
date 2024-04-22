@@ -10,7 +10,7 @@
 //! [man-elf]: https://man7.org/linux/man-pages/man5/elf.5.html
 //! [sco]: https://www.sco.com/developers/gabi/latest/contents.html
 
-use std::{
+use core::{
     mem::size_of,
     num::{NonZeroU16, NonZeroU32, NonZeroU64},
 };

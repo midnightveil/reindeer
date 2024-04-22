@@ -1,3 +1,8 @@
+#![no_std]
+
+#[cfg(feature = "std")]
+extern crate std;
+
 pub mod elf_aux_structures;
 pub mod elf_structures;
 pub mod errors;
@@ -5,8 +10,7 @@ pub mod range;
 
 mod macros;
 
-use std::{
-    borrow::Cow,
+use core::{
     ffi::CStr,
     num::{NonZeroU16, NonZeroU64},
     ops::Range,
