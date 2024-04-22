@@ -8,5 +8,5 @@ err-derive = { version = "0.3.1", default-features = false }
 zerocopy = { version = "0.7.32", features = ["derive"] }
 
 [features]
-default = ["std"]
+default = []
 std = ["err-derive/std"]

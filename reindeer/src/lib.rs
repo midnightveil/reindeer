@@ -189,6 +189,73 @@ impl<'buf> ElfProgramHeader<'buf> {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub enum ElfSectionHeaders<'buf> {
+    Elf32(&'buf [Elf32SectionHeader]),
+    Elf64(&'buf [Elf64SectionHeader]),
+}
+
+impl<'buf> ElfSectionHeaders<'buf> {
+    // bytes must be a multiple of the length?
+    // todo: better to use slice_from_prefix?
+    // todo: should require the length?
+    pub fn parse(header: &ElfHeader, bytes: &'buf [u8]) -> Result<Self, ElfError> {
+        let section_headers = match header {
+            ElfHeader::Elf32(_) => {
+                Self::Elf32(Elf32SectionHeader::slice_from(bytes).ok_or(ElfError::ZeroCopyError)?)
+            }
+            ElfHeader::Elf64(_) => {
+                Self::Elf64(Elf64SectionHeader::slice_from(bytes).ok_or(ElfError::ZeroCopyError)?)
+            }
+        };
+
+        // Note: We don't need to do any further checks, as ElfSectionHeader::parse and ElfProgramHeader::parse
+        //       are just wrappers around ref_from_prefix(), and so this is fine..
+
+        Ok(section_headers)
+    }
+
+    pub fn find_by_name(
+        &self,
+        string_table: ElfStringTable,
+        name: &str,
+    ) -> Option<ElfSectionHeader> {
+        self.into_iter().find(|header| {
+            string_table
+                .section_name(*header)
+                .is_ok_and(|header_name| header_name == name)
+        })
+    }
+}
+
+impl<'buf> IntoIterator for ElfSectionHeaders<'buf> {
+    type Item = ElfSectionHeader<'buf>;
+    type IntoIter = ElfSectionHeadersIter<'buf>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            ElfSectionHeaders::Elf32(headers) => Self::IntoIter::Elf32(headers.iter()),
+            ElfSectionHeaders::Elf64(headers) => Self::IntoIter::Elf64(headers.iter()),
+        }
+    }
+}
+
+pub enum ElfSectionHeadersIter<'buf> {
+    Elf32(core::slice::Iter<'buf, Elf32SectionHeader>),
+    Elf64(core::slice::Iter<'buf, Elf64SectionHeader>),
+}
+
+impl<'buf> Iterator for ElfSectionHeadersIter<'buf> {
+    type Item = ElfSectionHeader<'buf>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Elf32(iter) => iter.next().map(Self::Item::Elf32),
+            Self::Elf64(iter) => iter.next().map(Self::Item::Elf64),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct ElfStringTable<'buf> {
     buffer: &'buf [u8],
 }

@@ -42,4 +42,7 @@ pub enum ElfError {
     FileSzLargerThanMemSz,
     #[error(display = "segment alignment is congruent with address")]
     IncongurentSegmentAlignment,
+
+    #[error(display = "the elf file has no section header table")]
+    NoSectionHeaders,
 }
