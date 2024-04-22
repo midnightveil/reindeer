@@ -1,4 +1,8 @@
-use core::{ffi::FromBytesUntilNulError, num::{NonZeroU16, TryFromIntError}, str::Utf8Error};
+use core::{
+    ffi::FromBytesUntilNulError,
+    num::{NonZeroU16, TryFromIntError},
+    str::Utf8Error,
+};
 
 use crate::{elf_aux_structures::*, elf_structures::ElfIdent};
 
@@ -29,7 +33,10 @@ pub enum ElfError {
 
     #[error(display = "too big for usize: {}", _0)]
     TooBigForUsize(#[source] TryFromIntError),
-    #[error(display = "string table section header index {} is outside the section table", _0)]
+    #[error(
+        display = "string table section header index {} is outside the section table",
+        _0
+    )]
     StringTableHeaderOutOfBounds(NonZeroU16),
     #[error(display = "string table index {} is outside the string table", _0)]
     StringTableOutOfBounds(usize),

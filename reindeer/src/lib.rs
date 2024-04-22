@@ -3,7 +3,7 @@
     clippy::arithmetic_side_effects,
     clippy::as_conversions,
     clippy::unwrap_used,
-    clippy::indexing_slicing,
+    clippy::indexing_slicing
 )]
 
 #[cfg(feature = "std")]
