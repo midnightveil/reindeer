@@ -235,6 +235,26 @@ impl<'buf> ElfSectionHeaders<'buf> {
                 .is_ok_and(|header_name| header_name == name)
         })
     }
+
+    pub fn get(&self, index: u16) -> Option<ElfSectionHeader> {
+        let index = usize::from(index);
+        match self {
+            Self::Elf32(headers) => headers.get(index).map(ElfSectionHeader::Elf32),
+            Self::Elf64(headers) => headers.get(index).map(ElfSectionHeader::Elf64),
+        }
+    }
+
+    pub fn string_table_location(&self, header: ElfHeader) -> Result<Option<Range<u64>>, ElfError> {
+        let Some(string_table_index) = header.e_shstrndx() else {
+            return Ok(None);
+        };
+
+        let string_table_header = self
+            .get(string_table_index.get())
+            .ok_or(ElfError::StringTableHeaderOutOfBounds(string_table_index))?;
+
+        Ok(Some(string_table_header.location()))
+    }
 }
 
 impl<'buf> IntoIterator for ElfSectionHeaders<'buf> {

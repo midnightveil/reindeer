@@ -12,9 +12,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     f.read_to_end(&mut buffer)?;
 
     let header = ElfHeader::parse(&buffer).unwrap();
-    let _string_table = get_string_table(header, &buffer)?;
+    let section_headers_location = header
+        .section_headers_location()
+        .unwrap()
+        .try_into_usize()?;
+    let section_headers = ElfSectionHeaders::parse(header, &buffer[section_headers_location])?;
+    let string_table_location = section_headers
+        .string_table_location(header)?
+        .unwrap()
+        .try_into_usize()?;
+    let _string_table = ElfStringTable::parse(&buffer[string_table_location])?;
+
     // _print_segment_load_locations(header, &buffer)?;
-    _print_section_headers(header, &buffer, _string_table)?;
+    _print_section_headers(section_headers, _string_table)?;
     println!();
     _print_program_headers(header, &buffer)?;
 
@@ -90,34 +100,13 @@ fn _print_program_headers(header: ElfHeader<'_>, buffer: &[u8]) -> Result<(), Bo
     Ok(())
 }
 
-fn get_string_table<'a>(
-    header: ElfHeader,
-    buffer: &'a [u8],
-) -> Result<ElfStringTable<'a>, Box<dyn Error>> {
-    let string_table_header_location = header
-        .string_table_header_location()
-        .unwrap()
-        .try_into_usize()?;
-    let string_table_header =
-        ElfSectionHeader::parse(header, &buffer[string_table_header_location]).unwrap();
-    let string_table_location = string_table_header.location().try_into_usize()?;
-
-    Ok(ElfStringTable::parse(&buffer[string_table_location])?)
-}
-
 fn _print_section_headers(
-    header: ElfHeader,
-    buffer: &[u8],
+    section_headers: ElfSectionHeaders,
     string_table: ElfStringTable,
 ) -> Result<(), Box<dyn Error>> {
     println!(
         "[Nr] Name                  Type            Address          Off    Size   Flags Align"
     );
-    let section_headers_location = header
-        .section_headers_location()
-        .unwrap()
-        .try_into_usize()?;
-    let section_headers = ElfSectionHeaders::parse(header, &buffer[section_headers_location])?;
     for (n, section_header) in section_headers.into_iter().enumerate() {
         let name = string_table.section_name(section_header)?;
 
