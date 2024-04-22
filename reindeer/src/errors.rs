@@ -6,11 +6,23 @@ use crate::{elf_aux_structures::*, elf_structures::ElfIdent};
 pub enum ElfError {
     #[error(display = "buffer is smaller than expected, or is not aligned")]
     ZeroCopyError,
-    #[error(display = "invalid magic number, expected {:?}, found {:?}", ElfIdent::ELF_MAGIC, _0)]
+    #[error(
+        display = "invalid magic number, expected {:?}, found {:?}",
+        ElfIdent::ELF_MAGIC,
+        _0
+    )]
     InvalidMagic([u8; 4]),
-    #[error(display = "invalid data encoding, expected {:?}, found {:?}", ElfIdentData::DATA_2_LSB, _0)]
+    #[error(
+        display = "invalid data encoding, expected {:?}, found {:?}",
+        ElfIdentData::DATA_2_LSB,
+        _0
+    )]
     InvalidDataEncoding(ElfIdentData),
-    #[error(display = "invalid elf ident version, expected {:?}, found {:?}", ElfIdentVersion::EV_CURRENT, _0)]
+    #[error(
+        display = "invalid elf ident version, expected {:?}, found {:?}",
+        ElfIdentVersion::EV_CURRENT,
+        _0
+    )]
     InvalidVersion(ElfIdentVersion),
     #[error(display = "invalid elf ident class, found {:?}", _0)]
     InvalidClass(ElfIdentClass),

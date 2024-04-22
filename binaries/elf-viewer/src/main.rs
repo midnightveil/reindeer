@@ -73,7 +73,10 @@ fn _print_program_headers(header: ElfHeader<'_>, buffer: &[u8]) -> Result<(), Bo
 
         println!(
             "{:<15} 0x{:06x} {:018x} {:018x} 0x{:06x} 0x{:06x} {:5} 0x{:<4x}",
-            program_header.p_type().name().unwrap_or(&format!("{:#x}", program_header.p_type().0)),
+            program_header
+                .p_type()
+                .name()
+                .unwrap_or(&format!("{:#x}", program_header.p_type().0)),
             prog_header.p_offset,
             prog_header.p_vaddr,
             prog_header.p_paddr,
@@ -127,7 +130,10 @@ fn _print_section_headers(
             "[{:02}] {:<21} {:<15} {:016x} {:06x} {:06x} {:5x} {:5}",
             n,
             name,
-            section_header.sh_type().name().unwrap_or(&format!("{:#x}", section_header.sh_type().0)),
+            section_header
+                .sh_type()
+                .name()
+                .unwrap_or(&format!("{:#x}", section_header.sh_type().0)),
             sec_header.sh_addr.map(|v| v.get()).unwrap_or(0),
             sec_header.sh_offset,
             sec_header.sh_size,
