@@ -1,4 +1,5 @@
 #![no_std]
+#![warn(clippy::arithmetic_side_effects)]
 
 #[cfg(feature = "std")]
 extern crate std;
@@ -184,6 +185,10 @@ impl<'buf> ElfProgramHeader<'buf> {
         if self.p_filesz() > self.p_memsz() {
             return Err(ElfError::FileSzLargerThanMemSz);
         }
+
+        // clippy is overzealous here; we know that p_align() is not 0 because
+        // we checked for that, so the remainder (%) won't panic.
+        #[allow(clippy::arithmetic_side_effects)]
         if self.p_type() == ElfSegmentType::PT_LOAD
             && self.p_align() > 1
             && self.p_vaddr() % self.p_align() != self.p_offset() % self.p_align()
