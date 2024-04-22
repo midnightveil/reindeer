@@ -2,7 +2,7 @@ use std::{env, error::Error, fs::File, io::Read};
 
 use reindeer::{
     elf_aux_structures::ElfSegmentType, range::TryIntoRangeUsize, ElfHeader, ElfProgramHeader,
-    ElfSectionHeader, ElfStringTable,
+    ElfSectionHeader, ElfSectionHeaders, ElfStringTable,
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -113,13 +113,12 @@ fn _print_section_headers(
     println!(
         "[Nr] Name                  Type            Address          Off    Size   Flags Align"
     );
-    for n in 0..header.e_shnum().unwrap().get() {
-        let section_header_location = header
-            .section_header_location(n)
-            .unwrap()
-            .try_into_usize()?;
-        let section_header =
-            ElfSectionHeader::parse(&header, &buffer[section_header_location]).unwrap();
+    let section_headers_location = header
+        .section_headers_location()
+        .unwrap()
+        .try_into_usize()?;
+    let section_headers = ElfSectionHeaders::parse(header, &buffer[section_headers_location])?;
+    for (n, section_header) in section_headers.into_iter().enumerate() {
         let name = string_table.section_name(section_header)?;
 
         let ElfSectionHeader::Elf64(sec_header) = section_header else {

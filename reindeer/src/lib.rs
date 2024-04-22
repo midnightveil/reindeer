@@ -72,6 +72,16 @@ impl<'buf> ElfHeader<'buf> {
         })
     }
 
+    pub fn section_headers_location(&self) -> Option<Range<u64>> {
+        let start = self.e_shoff()?.get();
+        let length = self.e_shentsize().saturating_mul(self.e_shnum()?.get());
+
+        Some(Range {
+            start,
+            end: start.saturating_add(u64::from(length)),
+        })
+    }
+
     pub fn string_table_header_location(&self) -> Option<Range<u64>> {
         self.section_header_location(self.e_shstrndx()?.get())
     }

@@ -46,7 +46,7 @@ fn get_string_table<'a>(
         .ok_or("oops, no string table")?
         .try_into_usize()?;
     let string_table_header = ElfSectionHeader::parse(
-        &header,
+        header,
         &buffer
             .get(string_table_header_location)
             .ok_or("oob for string table header")?,
@@ -73,7 +73,7 @@ fn parse_program_headers<'a>(
             .try_into_usize()?;
 
         let program_header = ElfProgramHeader::parse(
-            &header,
+            header,
             &buffer.get(prog_header_loc).ok_or("prog header oob")?,
         )?;
 
@@ -97,7 +97,7 @@ fn parse_section_headers<'a>(
             .try_into_usize()?;
 
         let section_header = ElfSectionHeader::parse(
-            &header,
+            header,
             &buffer
                 .get(section_header_location)
                 .ok_or("section header oob")?,
