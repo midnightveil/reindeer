@@ -112,6 +112,9 @@ pub enum ElfSectionHeader<'buf> {
 
 impl<'buf> ElfSectionHeader<'buf> {
     pub fn parse(header: ElfHeader, bytes: &'buf [u8]) -> Result<Self, ElfError> {
+        // ref_from_prefix() is correct here, as the elf file could have
+        // a different e_shentsize to that of our types, so we could have
+        // the appropriate buffer be larger than the types themselves.
         let sh_header = match header {
             ElfHeader::Elf32(_) => Self::Elf32(
                 Elf32SectionHeader::ref_from_prefix(bytes).ok_or(ElfError::ZeroCopyError)?,
@@ -146,6 +149,9 @@ pub enum ElfProgramHeader<'buf> {
 
 impl<'buf> ElfProgramHeader<'buf> {
     pub fn parse(header: ElfHeader, bytes: &'buf [u8]) -> Result<Self, ElfError> {
+        // ref_from_prefix() is correct here, as the elf file could have
+        // a different e_shentsize to that of our types, so we could have
+        // the appropriate buffer be larger than the types themselves.
         let p_header = match header {
             ElfHeader::Elf32(_) => Self::Elf32(
                 Elf32ProgramHeader::ref_from_prefix(bytes).ok_or(ElfError::ZeroCopyError)?,
