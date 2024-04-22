@@ -13,6 +13,7 @@ mod macros;
 
 use core::{
     ffi::CStr,
+    mem::size_of,
     num::{NonZeroU16, NonZeroU64},
     ops::Range,
 };
@@ -228,6 +229,12 @@ impl<'buf> ElfSectionHeaders<'buf> {
                 Self::Elf64(Elf64SectionHeader::slice_from(bytes).ok_or(ElfError::ZeroCopyError)?)
             }
         };
+
+        if header.e_shentsize() as usize != size_of::<Elf32SectionHeader>()
+            && header.e_shentsize() as usize != size_of::<Elf64SectionHeader>()
+        {
+            todo!("slice_from assumes the stride matches size_of");
+        }
 
         // Note: We don't need to do any further checks, as ElfSectionHeader::parse and ElfProgramHeader::parse
         //       are just wrappers around ref_from_prefix(), and so this is fine..
