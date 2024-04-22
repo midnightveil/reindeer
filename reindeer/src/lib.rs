@@ -1,5 +1,8 @@
 #![no_std]
-#![warn(clippy::arithmetic_side_effects)]
+#![warn(
+    clippy::arithmetic_side_effects,
+    clippy::as_conversions,
+)]
 
 #[cfg(feature = "std")]
 extern crate std;
@@ -230,6 +233,7 @@ impl<'buf> ElfSectionHeaders<'buf> {
             }
         };
 
+        #[allow(clippy::as_conversions)]
         if header.e_shentsize() as usize != size_of::<Elf32SectionHeader>()
             && header.e_shentsize() as usize != size_of::<Elf64SectionHeader>()
         {
