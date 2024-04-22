@@ -101,7 +101,7 @@ pub enum ElfSectionHeader<'buf> {
 }
 
 impl<'buf> ElfSectionHeader<'buf> {
-    pub fn parse(header: &ElfHeader, bytes: &'buf [u8]) -> Result<Self, ElfError> {
+    pub fn parse(header: ElfHeader, bytes: &'buf [u8]) -> Result<Self, ElfError> {
         let sh_header = match header {
             ElfHeader::Elf32(_) => Self::Elf32(
                 Elf32SectionHeader::ref_from_prefix(bytes).ok_or(ElfError::ZeroCopyError)?,
@@ -135,7 +135,7 @@ pub enum ElfProgramHeader<'buf> {
 }
 
 impl<'buf> ElfProgramHeader<'buf> {
-    pub fn parse(header: &ElfHeader, bytes: &'buf [u8]) -> Result<Self, ElfError> {
+    pub fn parse(header: ElfHeader, bytes: &'buf [u8]) -> Result<Self, ElfError> {
         let p_header = match header {
             ElfHeader::Elf32(_) => Self::Elf32(
                 Elf32ProgramHeader::ref_from_prefix(bytes).ok_or(ElfError::ZeroCopyError)?,
@@ -198,7 +198,7 @@ impl<'buf> ElfSectionHeaders<'buf> {
     // bytes must be a multiple of the length?
     // todo: better to use slice_from_prefix?
     // todo: should require the length?
-    pub fn parse(header: &ElfHeader, bytes: &'buf [u8]) -> Result<Self, ElfError> {
+    pub fn parse(header: ElfHeader, bytes: &'buf [u8]) -> Result<Self, ElfError> {
         let section_headers = match header {
             ElfHeader::Elf32(_) => {
                 Self::Elf32(Elf32SectionHeader::slice_from(bytes).ok_or(ElfError::ZeroCopyError)?)

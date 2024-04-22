@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .program_header_location(n)
             .unwrap()
             .try_into_usize()?;
-        let prog_header = ElfProgramHeader::parse(&header, &buffer[prog_header_loc]).unwrap();
+        let prog_header = ElfProgramHeader::parse(header, &buffer[prog_header_loc]).unwrap();
         if prog_header.p_type() != ElfSegmentType::PT_LOAD {
             continue;
         }
@@ -44,7 +44,7 @@ fn _print_segment_load_locations(
             .unwrap()
             .try_into_usize()?;
 
-        let program_header = ElfProgramHeader::parse(&header, &buffer[prog_header_loc]).unwrap();
+        let program_header = ElfProgramHeader::parse(header, &buffer[prog_header_loc]).unwrap();
         println!(
             "{:?} into {:?}",
             program_header.file_location(),
@@ -66,7 +66,7 @@ fn _print_program_headers(header: ElfHeader<'_>, buffer: &[u8]) -> Result<(), Bo
             .unwrap()
             .try_into_usize()?;
 
-        let program_header = ElfProgramHeader::parse(&header, &buffer[prog_header_loc]).unwrap();
+        let program_header = ElfProgramHeader::parse(header, &buffer[prog_header_loc]).unwrap();
         let ElfProgramHeader::Elf64(prog_header) = program_header else {
             panic!()
         };
@@ -99,7 +99,7 @@ fn get_string_table<'a>(
         .unwrap()
         .try_into_usize()?;
     let string_table_header =
-        ElfSectionHeader::parse(&header, &buffer[string_table_header_location]).unwrap();
+        ElfSectionHeader::parse(header, &buffer[string_table_header_location]).unwrap();
     let string_table_location = string_table_header.location().try_into_usize()?;
 
     Ok(ElfStringTable::parse(&buffer[string_table_location])?)
