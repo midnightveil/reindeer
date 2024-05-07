@@ -18,35 +18,42 @@ impl<T: TryInto<usize>> TryIntoRangeUsize for Range<T> {
     }
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(kani)]
+mod verification {
     use super::*;
 
-    #[test]
+    #[kani::proof]
     fn works_smaller_type() {
-        let range = Range {
-            start: 0u32,
-            end: 10u32,
+        let range = Range::<u32> {
+            start: kani::any(),
+            end: kani::any(),
         };
 
         assert!(range.try_into_usize().is_ok());
     }
 
-    #[test]
+    #[kani::proof]
     fn works_larger_type() {
-        let range = Range {
-            start: 0u128,
-            end: 10u128,
+        let range = Range::<u128> {
+            start: kani::any(),
+            end: kani::any(),
         };
+
+        kani::assume(range.start <= usize::MAX as u128);
+        kani::assume(range.end <= usize::MAX as u128);
+
         assert!(range.try_into_usize().is_ok());
     }
 
-    #[test]
+    #[kani::proof]
     fn safely_handles_larger_type_oob() {
-        let range = Range {
-            start: u128::MAX - 10,
-            end: u128::MAX,
+        let range = Range::<u128> {
+            start: kani::any(),
+            end: kani::any(),
         };
+
+        kani::assume(range.start > usize::MAX as u128 || range.end > usize::MAX as u128);
+
         assert!(range.try_into_usize().is_err());
     }
 }

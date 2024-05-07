@@ -54,3 +54,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - run: cargo clippy
+
+  kani:
+    name: Run Kani
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: model-checking/kani-github-action@v1
+        with:
+          kani-version: '0.50.0'
+          command: 'cargo-kani'
+          args: '--lib'
