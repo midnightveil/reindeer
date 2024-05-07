@@ -12,6 +12,7 @@ libfuzzer-sys = "0.4"
 
 [dependencies.reindeer]
 path = "../reindeer"
+features = [ "std" ]
 
 [[bin]]
 name = "main_target"

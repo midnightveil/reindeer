@@ -1,3 +1,9 @@
+#![allow(unknown_lints)]
+// nightly compiler has a warn due to err_derive::Error's derive
+// doing a non-local impl, whatever that means. but not on stable.
+// just disable it, for now.
+#![allow(non_local_definitions)]
+
 use core::{
     ffi::FromBytesUntilNulError,
     num::{NonZeroU16, TryFromIntError},
